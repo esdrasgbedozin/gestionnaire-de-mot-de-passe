@@ -52,14 +52,45 @@ class Password(db.Model):
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False, index=True)
-    site_name = db.Column(db.String(255), nullable=False)
+    
+    # Informations du site/service
+    site_name = db.Column(db.String(255), nullable=False, index=True)
     site_url = db.Column(db.String(500), nullable=True)
     username = db.Column(db.String(255), nullable=False)
-    encrypted_password = db.Column(db.Text, nullable=False)  # Mot de passe chiffré
+    email = db.Column(db.String(255), nullable=True)
+    
+    # Mot de passe chiffré
+    encrypted_password = db.Column(db.Text, nullable=False)
+    
+    # Organisation et métadonnées
+    category = db.Column(db.String(100), nullable=True, index=True)  # Personnel, Travail, Social, etc.
+    tags = db.Column(db.String(500), nullable=True)  # Tags séparés par des virgules
     notes = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Favoris et priorité
+    is_favorite = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    priority = db.Column(db.Integer, default=0)  # 0=normal, 1=important, 2=critique
+    
+    # Sécurité
+    password_strength = db.Column(db.Integer, nullable=True)  # Score de 1 à 5
+    requires_2fa = db.Column(db.Boolean, default=False)
+    
+    # Dates et usage
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_used = db.Column(db.DateTime, nullable=True)
+    password_changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Notifications et rappels
+    expires_at = db.Column(db.DateTime, nullable=True)  # Date d'expiration du mot de passe
+    remind_before_expiry = db.Column(db.Integer, default=30)  # Jours avant expiration pour rappel
+    
+    # Index composés pour optimiser les recherches
+    __table_args__ = (
+        db.Index('idx_user_category', 'user_id', 'category'),
+        db.Index('idx_user_favorite', 'user_id', 'is_favorite'),
+        db.Index('idx_user_site', 'user_id', 'site_name'),
+    )
     
     def to_dict(self, include_password=False):
         """Convertir en dictionnaire"""
@@ -68,10 +99,20 @@ class Password(db.Model):
             'site_name': self.site_name,
             'site_url': self.site_url,
             'username': self.username,
+            'email': self.email,
+            'category': self.category,
+            'tags': self.tags.split(',') if self.tags else [],
             'notes': self.notes,
+            'is_favorite': self.is_favorite,
+            'priority': self.priority,
+            'password_strength': self.password_strength,
+            'requires_2fa': self.requires_2fa,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            'last_used': self.last_used.isoformat() if self.last_used else None
+            'last_used': self.last_used.isoformat() if self.last_used else None,
+            'password_changed_at': self.password_changed_at.isoformat() if self.password_changed_at else None,
+            'expires_at': self.expires_at.isoformat() if self.expires_at else None,
+            'remind_before_expiry': self.remind_before_expiry
         }
         
         if include_password:
@@ -79,6 +120,17 @@ class Password(db.Model):
             data['encrypted_password'] = self.encrypted_password
         
         return data
+    
+    def set_tags(self, tags_list):
+        """Définir les tags à partir d'une liste"""
+        if isinstance(tags_list, list):
+            self.tags = ','.join([tag.strip() for tag in tags_list if tag.strip()])
+        else:
+            self.tags = tags_list
+    
+    def get_tags(self):
+        """Récupérer les tags sous forme de liste"""
+        return self.tags.split(',') if self.tags else []
 
 
 class AuditLog(db.Model):
