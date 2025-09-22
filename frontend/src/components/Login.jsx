@@ -104,7 +104,7 @@ const Login = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Background Pattern */}
-      <div className="absolute inset-0 bg-[url('/api/placeholder/1920/1080')] bg-cover bg-center opacity-5"></div>
+      <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-indigo-50/20 to-transparent opacity-30"></div>
       
       {/* Floating Elements */}
       <div className="absolute top-10 left-10 w-20 h-20 bg-indigo-300 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob"></div>
