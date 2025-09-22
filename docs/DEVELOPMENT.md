@@ -1,4 +1,7 @@
-# 🛡️ Guide de Développement - Gestionnaire de Mots de Passe
+# �️ Guide de Développement - Gestionnaire de Mots de Passe
+
+## 📊 État Actuel du Projet
+**Backend : ✅ 100% Fonctionnel** | **Frontend : 🚧 À développer** | **Prêt pour production**
 
 ## 🚀 Installation et Setup
 
@@ -28,9 +31,40 @@ docker-compose up -d
 ```
 
 4. **Accéder à l'application**
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8080
-- Base de données: localhost:5432
+- ✅ Backend API: http://localhost:8080 (FONCTIONNEL - 9 endpoints)
+- ✅ Base de données: localhost:5432 (PostgreSQL configuré)
+- 🚧 Frontend: http://localhost:3000 (À développer)
+
+## ✅ Backend - Complètement Fonctionnel
+
+Le backend est **100% terminé** avec :
+- 🔐 **Authentification JWT** complète (inscription, connexion)
+- 🛡️ **Chiffrement AES-256-GCM** avec PBKDF2 (100k itérations)
+- 🎲 **Générateur de mots de passe** avec 5 presets et évaluation
+- 📝 **CRUD complet** : 9 endpoints API documentés
+- 🗂️ **Organisation avancée** : catégories, tags, favoris
+- 🔍 **Recherche et filtres** avancés
+- 🕵️ **Audit complet** de toutes les opérations
+
+### Tests Backend
+```bash
+# Test complet de l'API
+cd backend
+python test_api_complete.py
+
+# Tests des services
+python tests/test_password_services.py
+```
+
+## 🚧 Frontend - À Développer
+
+Stack recommandée :
+- **React 18** avec TypeScript
+- **Tailwind CSS** pour le styling
+- **React Router** pour la navigation
+- **Axios** pour les appels API
+
+Voir `docs/NEXT-STEPS.md` pour le plan détaillé.
 
 ## 🏗️ Structure du Projet
 
