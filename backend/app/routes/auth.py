@@ -4,7 +4,7 @@ Routes d'authentification
 
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import IntegrityError
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import re
 
 from app.models import User, AuditLog
@@ -39,10 +39,19 @@ def validate_password(password):
     return True, "Password is valid"
 
 def log_audit_event(user_id, action, success, ip_address, user_agent, error_message=None):
-    """Enregistrer un événement d'audit"""
+    """Enregistrer un événement d'audit avec session séparée"""
     try:
+        # Utiliser une session séparée pour éviter les conflits
+        from extensions import db
+        
+        # Convertir user_id en string si c'est un UUID
+        user_id_str = str(user_id) if user_id else None
+        
+        # Créer une nouvelle session pour l'audit
+        audit_session = db.session
+        
         audit_log = AuditLog(
-            user_id=user_id,
+            user_id=user_id_str,
             action=action,
             resource_type='USER',
             ip_address=ip_address,
@@ -50,11 +59,18 @@ def log_audit_event(user_id, action, success, ip_address, user_agent, error_mess
             success=success,
             error_message=error_message
         )
-        db.session.add(audit_log)
-        db.session.commit()
+        
+        audit_session.add(audit_log)
+        audit_session.commit()
+        
     except Exception as e:
-        # Ne pas faire échouer la requête pour un problème d'audit
-        print(f"Audit log error: {str(e)}")
+        # Ne pas faire échouer la requête principale pour un problème d'audit
+        try:
+            audit_session.rollback()
+        except:
+            pass
+        # Log l'erreur d'audit en mode silencieux
+        print(f"Audit log error (non-critical): {str(e)}")
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -177,7 +193,8 @@ def login():
             return jsonify({'error': 'Account is disabled'}), 401
         
         # Vérifier le verrouillage du compte
-        if user.locked_until and datetime.utcnow() < user.locked_until:
+        current_time = datetime.now(timezone.utc)
+        if user.locked_until and current_time < user.locked_until:
             log_audit_event(
                 user_id=user.id,
                 action='LOGIN_FAILED',
@@ -189,15 +206,25 @@ def login():
             return jsonify({'error': 'Account is temporarily locked'}), 401
         
         # Vérifier le mot de passe
-        if not user.check_password(password):
+        try:
+            password_check = user.check_password(password)
+        except Exception as check_err:
+            print(f"Error checking password: {str(check_err)}")
+            return jsonify({'error': 'Authentication error'}), 500
+            
+        if not password_check:
             # Incrémenter le compteur d'échecs
-            user.failed_login_attempts += 1
-            
-            # Verrouiller après 5 tentatives
-            if user.failed_login_attempts >= 5:
-                user.locked_until = datetime.utcnow() + timedelta(minutes=30)
-            
-            db.session.commit()
+            try:
+                user.failed_login_attempts += 1
+                
+                # Verrouiller après 5 tentatives
+                if user.failed_login_attempts >= 5:
+                    user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=30)
+                
+                db.session.commit()
+            except Exception as db_err:
+                print(f"Error updating failed login attempts: {str(db_err)}")
+                db.session.rollback()
             
             log_audit_event(
                 user_id=user.id,
@@ -212,7 +239,7 @@ def login():
         # Connexion réussie - réinitialiser les compteurs
         user.failed_login_attempts = 0
         user.locked_until = None
-        user.last_login = datetime.utcnow()
+        user.last_login = datetime.now(timezone.utc)
         db.session.commit()
         
         # Générer les tokens
