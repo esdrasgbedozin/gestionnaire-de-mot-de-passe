@@ -3,12 +3,8 @@ Modèles de données pour le gestionnaire de mots de passe
 """
 
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
-from flask_bcrypt import Bcrypt
 import uuid
-
-db = SQLAlchemy()
-bcrypt = Bcrypt()
+from extensions import db, bcrypt
 
 
 class User(db.Model):
@@ -40,7 +36,7 @@ class User(db.Model):
     def to_dict(self):
         """Convertir en dictionnaire (sans le mot de passe)"""
         return {
-            'id': self.id,
+            'id': str(self.id),
             'email': self.email,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

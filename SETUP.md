@@ -67,12 +67,12 @@ cp .env.example .env
 docker-compose up -d
 
 # Vérifier que tout fonctionne
-curl http://localhost:5000/health
+curl http://localhost:8080/health
 ```
 
 ### 3. Accès aux services
 - **Frontend React** : http://localhost:3000
-- **API Backend** : http://localhost:5000
+- **API Backend** : http://localhost:8080
 - **Base de données** : localhost:5432
 
 ## 🧑‍💻 Prêt pour le Développement Collaboratif
