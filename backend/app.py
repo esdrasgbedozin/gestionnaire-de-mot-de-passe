@@ -4,18 +4,15 @@ Application principale Flask
 
 import os
 from flask import Flask, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from flask_bcrypt import Bcrypt
 from config import config
+from extensions import db, bcrypt
 
 # Initialisation des extensions
-db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
-bcrypt = Bcrypt()
 
 
 def create_app(config_name=None):
@@ -37,7 +34,7 @@ def create_app(config_name=None):
     CORS(app, origins=app.config['CORS_ORIGINS'])
     
     # Import des modèles (nécessaire pour les migrations)
-    from app.models import User, Password
+    from app.models import User, Password, AuditLog
     
     # Enregistrement des blueprints
     from app.routes.auth import auth_bp

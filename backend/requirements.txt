@@ -13,6 +13,7 @@ psycopg2-binary==2.9.7
 
 # Sécurité et cryptographie
 cryptography==41.0.4
+PyJWT==2.8.0  # Pour notre service JWT personnalisé
 pyotp==2.9.0  # Pour 2FA si implémenté plus tard
 
 # Validation et utilitaires
