@@ -39,10 +39,38 @@ def validate_password(password):
     return True, "Password is valid"
 
 def log_audit_event(user_id, action, success, ip_address, user_agent, error_message=None):
-    """Enregistrer un événement d'audit"""
-    # Désactiver temporairement l'audit pour éviter les erreurs 500
-    # TODO: Réactiver avec une session séparée
-    return
+    """Enregistrer un événement d'audit avec session séparée"""
+    try:
+        # Utiliser une session séparée pour éviter les conflits
+        from extensions import db
+        
+        # Convertir user_id en string si c'est un UUID
+        user_id_str = str(user_id) if user_id else None
+        
+        # Créer une nouvelle session pour l'audit
+        audit_session = db.session
+        
+        audit_log = AuditLog(
+            user_id=user_id_str,
+            action=action,
+            resource_type='USER',
+            ip_address=ip_address,
+            user_agent=user_agent,
+            success=success,
+            error_message=error_message
+        )
+        
+        audit_session.add(audit_log)
+        audit_session.commit()
+        
+    except Exception as e:
+        # Ne pas faire échouer la requête principale pour un problème d'audit
+        try:
+            audit_session.rollback()
+        except:
+            pass
+        # Log l'erreur d'audit en mode silencieux
+        print(f"Audit log error (non-critical): {str(e)}")
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -142,18 +170,39 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if not user:
-            # log_audit_event désactivé temporairement
+            log_audit_event(
+                user_id=None,
+                action='LOGIN_FAILED',
+                success=False,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent'),
+                error_message='User not found'
+            )
             return jsonify({'error': 'Invalid credentials'}), 401
         
         # Vérifier si le compte est actif
         if not user.is_active:
-            # log_audit_event désactivé temporairement
+            log_audit_event(
+                user_id=user.id,
+                action='LOGIN_FAILED',
+                success=False,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent'),
+                error_message='Account disabled'
+            )
             return jsonify({'error': 'Account is disabled'}), 401
         
         # Vérifier le verrouillage du compte
         current_time = datetime.now(timezone.utc)
         if user.locked_until and current_time < user.locked_until:
-            # log_audit_event désactivé temporairement
+            log_audit_event(
+                user_id=user.id,
+                action='LOGIN_FAILED',
+                success=False,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent'),
+                error_message='Account locked'
+            )
             return jsonify({'error': 'Account is temporarily locked'}), 401
         
         # Vérifier le mot de passe
@@ -177,7 +226,14 @@ def login():
                 print(f"Error updating failed login attempts: {str(db_err)}")
                 db.session.rollback()
             
-            # log_audit_event désactivé temporairement
+            log_audit_event(
+                user_id=user.id,
+                action='LOGIN_FAILED',
+                success=False,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent'),
+                error_message='Invalid password'
+            )
             return jsonify({'error': 'Invalid credentials'}), 401
         
         # Connexion réussie - réinitialiser les compteurs
@@ -189,7 +245,14 @@ def login():
         # Générer les tokens
         tokens = JWTService.generate_tokens(user)
         
-        # log_audit_event désactivé temporairement
+        # Log de succès
+        log_audit_event(
+            user_id=user.id,
+            action='LOGIN_SUCCESS',
+            success=True,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
         
         return jsonify({
             'message': 'Login successful',
@@ -198,7 +261,14 @@ def login():
         }), 200
         
     except Exception as e:
-        # log_audit_event désactivé temporairement
+        log_audit_event(
+            user_id=None,
+            action='LOGIN_ERROR',
+            success=False,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            error_message=str(e)
+        )
         return jsonify({'error': 'Login failed'}), 500
 
 @auth_bp.route('/logout', methods=['POST'])
