@@ -5,7 +5,7 @@ import {
   KeyIcon, 
   CogIcon, 
   UserIcon,
-  LogoutIcon,
+  ArrowRightOnRectangleIcon,
   ShieldCheckIcon,
   PlusIcon,
   MagnifyingGlassIcon,
@@ -105,7 +105,7 @@ const Dashboard = () => {
                 onClick={handleLogout}
                 className="ml-3 p-2 text-gray-400 hover:text-red-500 transition-colors"
               >
-                <LogoutIcon className="h-5 w-5" />
+                <ArrowRightOnRectangleIcon className="h-5 w-5" />
               </button>
             </div>
           </div>
