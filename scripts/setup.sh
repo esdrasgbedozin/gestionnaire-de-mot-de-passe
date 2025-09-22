@@ -48,7 +48,7 @@ if docker-compose ps | grep -q "Up"; then
     echo ""
     echo "🌐 Accès à l'application:"
     echo "   Frontend: http://localhost:3000"
-    echo "   Backend:  http://localhost:5000"
+    echo "   Backend:  http://localhost:8080"
     echo "   Base de données: localhost:5432"
     echo ""
     echo "📚 Consultez docs/DEVELOPMENT.md pour plus d'informations"

@@ -29,7 +29,7 @@ docker-compose up -d
 
 4. **Accéder à l'application**
 - Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
+- Backend API: http://localhost:8080
 - Base de données: localhost:5432
 
 ## 🏗️ Structure du Projet
