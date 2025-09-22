@@ -1,7 +1,23 @@
 # 🛡️ Gestionnaire de mots de passe
 
 ## 📊 Statut du projet
-**Backend : ✅ 100% Fonctionnel** | **Frontend : 🚧 En attente** | **Production : 🛠️ Prêt à déployer**
+**Backend : ✅ 100% Fonctionnel** | **Fronten## 🛠️ Maintenance & Production
+- ✅ **Documentation** : API, déploiement, développement complète
+- ✅ **Tests automatisés** : Services, chiffrement, génération
+- ✅ **Containerisation** : Docker Compose prêt production
+- ✅ **Migrations** : Base de données versionnée
+- 🔄 **Sauvegarde** : Scripts à configurer selon environnement
+- 🔔 **Monitoring** : Logs d'audit intégrés
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [� Documentation](/docs) | Index de toute la documentation |
+| [🚀 Guide de développement](/docs/DEVELOPMENT.md) | Setup et développement |
+| [📡 Documentation API](/docs/API-DOCUMENTATION.md) | 9 endpoints détaillés |
+| [🌐 Guide de déploiement](/docs/DEPLOYMENT-GUIDE.md) | Production et sécurité |
+| [🎯 Prochaines étapes](/docs/NEXT-STEPS.md) | Roadmap frontend (8 semaines) |En attente** | **Production : 🛠️ Prêt à déployer**
 
 ## 🎯 Objectif
 > Concevoir et déployer une application **sécurisée** de gestion de mots de passe, permettant à chaque utilisateur de stocker, consulter et gérer ses identifiants de manière confidentielle.
