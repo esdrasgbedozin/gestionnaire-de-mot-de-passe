@@ -28,13 +28,15 @@
 
 **Livrables** : Base de données opérationnelle avec tables et relations
 
-### 🔐 Authentification Backend (Sprint 1.2)
+### 🔐 Authentification Backend (Sprint 1.2) - **TERMINÉ** ✅
 **Assigné à : Développeur 2**
-- [ ] Routes d'inscription/connexion
-- [ ] Gestion des tokens JWT
-- [ ] Middleware d'authentification
-- [ ] Hashage sécurisé des mots de passe
-- [ ] Tests d'intégration auth
+- [x] Routes d'inscription/connexion
+- [x] Gestion des tokens JWT
+- [x] Middleware d'authentification
+- [x] Hashage sécurisé des mots de passe
+- [x] Tests d'intégration auth
+- [x] Protection brute force
+- [x] Système d'audit logging
 
 **Livrables** : API d'authentification complète et sécurisée
 
@@ -52,13 +54,15 @@
 
 **Livrables** : API complète de gestion des mots de passe
 
-### 🎨 Interface Utilisateur Base (Sprint 2.2)
+### 🎨 Interface Utilisateur Base (Sprint 2.2) - **TERMINÉ** ✅
 **Assigné à : Développeur 2**
-- [ ] Composants d'authentification (Login/Register)
-- [ ] Layout et navigation
-- [ ] Context d'authentification React
-- [ ] Services API frontend
-- [ ] Design responsive avec Tailwind
+- [x] Composants d'authentification (Login/Register)
+- [x] Layout et navigation
+- [x] Context d'authentification React
+- [x] Services API frontend
+- [x] Design responsive avec Tailwind
+- [x] Dashboard utilisateur avec thème dark/light
+- [x] Animations et transitions modernes
 
 **Livrables** : Interface d'authentification fonctionnelle
 
