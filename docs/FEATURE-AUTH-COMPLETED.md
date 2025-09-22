@@ -67,5 +67,5 @@ frontend/
 ---
 
 ## 📋 Branches utilisées
-- `feature/auth-frontend` ← Prête pour merge
-- `feature/auth-backend` ← Supprimée (intégrée)
+- `feature/auth-frontend` ← Prête pour merge vers dev
+- Authentification intégrée dans `dev`
