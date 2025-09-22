@@ -8,57 +8,11 @@ from datetime import datetime, timedelta
 import re
 
 from app.models import User, AuditLog
-from extensions import db  # Import de l'instance db partagée
-# from ..services.jwt_service import JWTService, token_required, TokenBlacklist
-from simple_jwt import SimpleJWTService  # Service JWT simplifié pour débogger
+from extensions import db
+from ..services.jwt_service import JWTService, token_required, TokenBlacklist
 
 # Créer le blueprint d'authentification
 auth_bp = Blueprint('auth', __name__)
-
-@auth_bp.route('/debug', methods=['GET'])
-def debug():
-    """Route de debug pour tester le blueprint"""
-    return jsonify({'message': 'Debug endpoint works!', 'status': 'ok'}), 200
-
-@auth_bp.route('/test-db', methods=['GET'])
-def test_db():
-    """Tester la connexion à la base de données"""
-    try:
-        # Test de comptage d'utilisateurs
-        user_count = User.query.count()
-        return jsonify({'message': 'Database connected', 'user_count': user_count}), 200
-    except Exception as e:
-        return jsonify({'error': f'Database connection failed: {str(e)}'}), 500
-
-@auth_bp.route('/test-simple-register', methods=['POST'])
-def test_simple_register():
-    """Version de test ultra-simplifiée de l'inscription"""
-    try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No JSON data'}), 400
-        
-        email = data.get('email')
-        password = data.get('password')
-        
-        if not email or not password:
-            return jsonify({'error': 'Missing email or password'}), 400
-        
-        # Vérifier si l'utilisateur existe
-        existing = User.query.filter_by(email=email).first()
-        if existing:
-            return jsonify({'error': 'User exists'}), 409
-        
-        # Créer l'utilisateur
-        user = User(email=email, password=password)
-        db.session.add(user)
-        db.session.commit()
-        
-        return jsonify({'message': 'User created', 'user_id': user.id}), 201
-        
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': f'Test registration failed: {str(e)}'}), 500
 
 def validate_email(email):
     """Valider le format de l'email"""
@@ -104,7 +58,7 @@ def log_audit_event(user_id, action, success, ip_address, user_agent, error_mess
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    """Route d'inscription - version debug"""
+    """Route d'inscription"""
     try:
         data = request.get_json()
         
@@ -130,6 +84,15 @@ def register():
         # Vérifier si l'utilisateur existe déjà
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
+            # Log de tentative d'inscription avec email existant
+            log_audit_event(
+                user_id=None,
+                action='REGISTER_FAILED',
+                success=False,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent'),
+                error_message='Email already exists'
+            )
             return jsonify({'error': 'Email already registered'}), 409
         
         # Créer le nouvel utilisateur
@@ -138,9 +101,16 @@ def register():
         db.session.commit()
         
         # Générer les tokens
-        tokens = SimpleJWTService.generate_tokens(new_user)
+        tokens = JWTService.generate_tokens(new_user)
         
-        # Pas d'audit log pour le moment pour débogger
+        # Log de succès
+        log_audit_event(
+            user_id=new_user.id,
+            action='REGISTER_SUCCESS',
+            success=True,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
         
         return jsonify({
             'message': 'User registered successfully',
@@ -154,7 +124,15 @@ def register():
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({'error': f'Registration failed: {str(e)}'}), 500
+        log_audit_event(
+            user_id=None,
+            action='REGISTER_ERROR',
+            success=False,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            error_message=str(e)
+        )
+        return jsonify({'error': 'Registration failed'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
@@ -238,7 +216,7 @@ def login():
         db.session.commit()
         
         # Générer les tokens
-        tokens = SimpleJWTService.generate_tokens(user)
+        tokens = JWTService.generate_tokens(user)
         
         # Log de succès
         log_audit_event(
@@ -266,21 +244,85 @@ def login():
         )
         return jsonify({'error': 'Login failed'}), 500
 
-"""
 @auth_bp.route('/logout', methods=['POST'])
-# @token_required  # Temporairement désactivé
-def logout():  # current_user_id
-    \"\"\"Route de déconnexion - temporairement désactivée\"\"\"
-    return jsonify({'message': 'Logout endpoint - temporarily disabled for testing'}), 501
+@token_required
+def logout(current_user_id):
+    """Route de déconnexion"""
+    try:
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split(' ')[1] if auth_header else None
+        
+        if token:
+            # Ajouter le token à la blacklist
+            TokenBlacklist.add_token(token)
+        
+        # Log de déconnexion
+        log_audit_event(
+            user_id=current_user_id,
+            action='LOGOUT_SUCCESS',
+            success=True,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent')
+        )
+        
+        return jsonify({'message': 'Logout successful'}), 200
+        
+    except Exception as e:
+        log_audit_event(
+            user_id=current_user_id,
+            action='LOGOUT_ERROR',
+            success=False,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent'),
+            error_message=str(e)
+        )
+        return jsonify({'error': 'Logout failed'}), 500
 
 @auth_bp.route('/refresh', methods=['POST'])
 def refresh():
-    \"\"\"Route de rafraîchissement de token - temporairement désactivée\"\"\"
-    return jsonify({'message': 'Refresh endpoint - temporarily disabled for testing'}), 501
+    """Route de rafraîchissement de token"""
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Request body is required'}), 400
+        
+        refresh_token = data.get('refresh_token')
+        
+        if not refresh_token:
+            return jsonify({'error': 'Refresh token is required'}), 400
+        
+        # Vérifier si le token est blacklisté
+        if TokenBlacklist.is_blacklisted(refresh_token):
+            return jsonify({'error': 'Token has been revoked'}), 401
+        
+        # Générer un nouveau token d'accès
+        new_tokens, error = JWTService.refresh_access_token(refresh_token)
+        
+        if error:
+            return jsonify({'error': error}), 401
+        
+        return jsonify({
+            'message': 'Token refreshed successfully',
+            'tokens': new_tokens
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Token refresh failed'}), 500
 
 @auth_bp.route('/me', methods=['GET'])
-# @token_required  # Temporairement désactivé
-def get_current_user():  # current_user_id
-    \"\"\"Obtenir les informations de l'utilisateur connecté - temporairement désactivé\"\"\"
-    return jsonify({'message': 'Me endpoint - temporarily disabled for testing'}), 501
-"""
+@token_required
+def get_current_user(current_user_id):
+    """Obtenir les informations de l'utilisateur connecté"""
+    try:
+        user = User.query.get(current_user_id)
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        return jsonify({
+            'user': user.to_dict()
+        }), 200
+        
+    except Exception as e:
+        return jsonify({'error': 'Failed to get user information'}), 500
