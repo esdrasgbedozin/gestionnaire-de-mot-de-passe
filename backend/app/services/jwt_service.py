@@ -19,7 +19,7 @@ class JWTService:
         
         # Token d'accès (15 minutes)
         access_payload = {
-            'user_id': user.id,
+            'user_id': str(user.id),
             'email': user.email,
             'iat': now,
             'exp': now + timedelta(minutes=15),
@@ -28,7 +28,7 @@ class JWTService:
         
         # Token de rafraîchissement (7 jours)
         refresh_payload = {
-            'user_id': user.id,
+            'user_id': str(user.id),
             'email': user.email,
             'iat': now,
             'exp': now + timedelta(days=7),
@@ -121,6 +121,10 @@ def token_required(f):
         
         if not token:
             return jsonify({'error': 'Token is missing'}), 401
+        
+        # Vérifier si le token est blacklisté
+        if TokenBlacklist.is_blacklisted(token):
+            return jsonify({'error': 'Token has been revoked'}), 401
         
         payload, error = JWTService.decode_token(token)
         
