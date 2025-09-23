@@ -2,10 +2,12 @@
 Routes de gestion des utilisateurs
 """
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, g
 from app.services.jwt_service import token_required
 from app.models import User, db
 from sqlalchemy.exc import SQLAlchemyError
+from validators import validate_user_data as xss_validate_user, SecurityValidator
+from rate_limiter import rate_limit_middleware
 import logging
 
 # Créer le blueprint de gestion des utilisateurs
@@ -37,11 +39,19 @@ def get_profile(current_user):
         }), 500
 
 @users_bp.route('/profile', methods=['PUT'])
-@token_required  
+@rate_limit_middleware
+@token_required
+@xss_validate_user
 def update_profile(current_user):
     """Modifier le profil utilisateur"""
     try:
-        data = request.get_json()
+        # Utiliser les données validées du décorateur XSS
+        data = getattr(g, 'validated_data', None)
+        
+        # Fallback vers request.get_json() si pas de données validées
+        if data is None:
+            data = request.get_json()
+            
         if not data:
             return jsonify({
                 'error': 'Données JSON requises',

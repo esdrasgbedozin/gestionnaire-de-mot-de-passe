@@ -9,6 +9,8 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from config import config
 from extensions import db, bcrypt
+from rate_limiter import setup_rate_limiting
+from security_headers import setup_security_headers
 
 # Initialisation des extensions
 migrate = Migrate()
@@ -76,6 +78,12 @@ def create_app(config_name=None):
     @jwt.unauthorized_loader
     def missing_token_callback(error):
         return jsonify({'message': 'Authorization token is required'}), 401
+    
+    # Configurer le rate limiting
+    app = setup_rate_limiting(app)
+    
+    # Configurer les headers de sécurité
+    app = setup_security_headers(app)
     
     return app
 

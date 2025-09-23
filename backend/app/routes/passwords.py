@@ -2,7 +2,7 @@
 Routes pour la gestion des mots de passe - Version corrigée avec JWT personnalisé
 """
 
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, g
 from datetime import datetime, timezone
 from sqlalchemy import or_, and_
 from sqlalchemy.exc import IntegrityError
@@ -12,9 +12,19 @@ from app.models import Password, User, AuditLog, db
 from app.services.encryption_service import EncryptionService
 from app.services.password_generator import PasswordGenerator
 from app.services.jwt_service import token_required
+from validators import validate_password_data as xss_validate_password, SecurityValidator
+from rate_limiter import rate_limit_middleware
 
 # Créer le blueprint
 passwords_bp = Blueprint('passwords', __name__)
+
+
+def get_validated_data():
+    """Récupérer les données validées du décorateur XSS ou fallback vers request.get_json()"""
+    data = getattr(g, 'validated_data', None)
+    if data is None:
+        data = request.get_json()
+    return data
 
 
 def log_audit_event(action, success=True, error_message=None, resource_id=None, user_id=None):
@@ -211,12 +221,14 @@ def get_password(current_user, password_id):
 
 
 @passwords_bp.route('/', methods=['POST'])
+@rate_limit_middleware
+@xss_validate_password
 @token_required
 def create_password(current_user):
     """Créer un nouveau mot de passe"""
     try:
         user_id = current_user.id
-        data = request.get_json()
+        data = get_validated_data()
         
         if not data:
             return jsonify({'error': 'Données JSON requises'}), 400
@@ -391,12 +403,13 @@ def evaluate_password_strength(current_user):
 
 
 @passwords_bp.route('/<string:password_id>', methods=['PUT'])
+@xss_validate_password
 @token_required
 def update_password(current_user, password_id):
     """Mettre à jour un mot de passe existant"""
     try:
         user_id = current_user.id
-        data = request.get_json()
+        data = get_validated_data()
         
         if not data:
             return jsonify({'error': 'Données requises'}), 400

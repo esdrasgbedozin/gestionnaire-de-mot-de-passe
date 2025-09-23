@@ -2,7 +2,7 @@
 Routes d'authentification
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 import re
@@ -10,6 +10,8 @@ import re
 from app.models import User, AuditLog
 from extensions import db
 from ..services.jwt_service import JWTService, token_required, TokenBlacklist
+from validators import validate_user_data as xss_validate_user, SecurityValidator
+from rate_limiter import rate_limit_middleware
 
 # Créer le blueprint d'authentification
 auth_bp = Blueprint('auth', __name__)
@@ -73,10 +75,17 @@ def log_audit_event(user_id, action, success, ip_address, user_agent, error_mess
         print(f"Audit log error (non-critical): {str(e)}")
 
 @auth_bp.route('/register', methods=['POST'])
+@rate_limit_middleware
+@xss_validate_user
 def register():
     """Route d'inscription"""
     try:
-        data = request.get_json()
+        # Utiliser les données validées du décorateur XSS
+        data = getattr(g, 'validated_data', None)
+        
+        # Fallback vers request.get_json() si pas de données validées
+        if data is None:
+            data = request.get_json()
         
         if not data:
             return jsonify({'error': 'Request body is required'}), 400
@@ -151,10 +160,17 @@ def register():
         return jsonify({'error': 'Registration failed'}), 500
 
 @auth_bp.route('/login', methods=['POST'])
+@rate_limit_middleware
+@xss_validate_user
 def login():
     """Route de connexion"""
     try:
-        data = request.get_json()
+        # Utiliser les données validées du décorateur XSS
+        data = getattr(g, 'validated_data', None)
+        
+        # Fallback vers request.get_json() si pas de données validées
+        if data is None:
+            data = request.get_json()
         
         if not data:
             return jsonify({'error': 'Request body is required'}), 400
@@ -272,6 +288,7 @@ def login():
         return jsonify({'error': 'Login failed'}), 500
 
 @auth_bp.route('/logout', methods=['POST'])
+@rate_limit_middleware
 @token_required
 def logout(current_user_id):
     """Route de déconnexion"""
@@ -306,6 +323,7 @@ def logout(current_user_id):
         return jsonify({'error': 'Logout failed'}), 500
 
 @auth_bp.route('/refresh', methods=['POST'])
+@rate_limit_middleware
 def refresh():
     """Route de rafraîchissement de token"""
     try:

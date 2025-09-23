@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # Application complète (frontend + backend + nginx)
+  app:
+    build: .
+    ports:
+      - "80:80"      # Nginx (frontend)
+      - "5000:5000"  # Backend API
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - DATABASE_URL=postgresql://password_manager:${DB_PASSWORD}@db:5432/password_manager
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    depends_on:
+      - db
+    networks:
+      - password_manager_network
+    restart: unless-stopped
+
+  # Base de données PostgreSQL
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: password_manager
+      POSTGRES_USER: password_manager
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - password_manager_network
+    restart: unless-stopped
+    # Note: Port 5432 n'est plus exposé publiquement pour la sécurité
+
+volumes:
+  postgres_data:
+
+networks:
+  password_manager_network:
+    driver: bridge
