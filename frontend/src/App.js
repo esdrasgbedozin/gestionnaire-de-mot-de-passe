@@ -4,8 +4,11 @@ import { Toaster } from 'react-hot-toast';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import Vault from './pages/Vault';
+import Settings from './pages/Settings';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
+import { TestPasswordCard, TestPasswordGenerator, BasicRenderTest } from './test/ComponentTest';
 
 function App() {
   return (
@@ -48,6 +51,23 @@ function App() {
                 <Dashboard />
               </ProtectedRoute>
             } />
+            
+            <Route path="/vault" element={
+              <ProtectedRoute>
+                <Vault />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
+            
+            {/* Routes de test - À supprimer en production */}
+            <Route path="/test" element={<BasicRenderTest />} />
+            <Route path="/test/password-card" element={<TestPasswordCard />} />
+            <Route path="/test/password-generator" element={<TestPasswordGenerator />} />
             
             {/* Redirection par défaut */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

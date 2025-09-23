@@ -29,7 +29,11 @@
 - [x] Relations entre tables et indexes
 - [x] Migrations automatiques
 
----
+### BE-AUTH-01 : Configuration JWT ✅
+- [x] Flask-JWT-Extended configuré
+- [x] Secret keys sécurisées
+- [x] Token expiration configurée
+- [x] Blacklist des tokens révoqués
 
 ## ✅ Authentification
 
