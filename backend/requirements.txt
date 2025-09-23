@@ -18,6 +18,7 @@ pyotp==2.9.0  # Pour 2FA si implémenté plus tard
 
 # Validation et utilitaires
 email-validator==2.0.0
+bleach==6.0.0  # XSS protection and HTML sanitization
 python-dotenv==1.0.0
 requests==2.31.0
 
