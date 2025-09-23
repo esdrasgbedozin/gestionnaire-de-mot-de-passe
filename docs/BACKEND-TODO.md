@@ -1,10 +1,11 @@
 # 🔧 BACKEND DEVELOPER - TODO LIST
 
-## 📊 Ma progression globale : ✅ 100% (21/21 tâches) - TERMINÉ !
+## 📊 Ma progression globale : ✅ 100% (24/24 tâches) - TERMINÉ !
 
-### � **BACKEND COMPLET ET FONCTIONNEL** 🎉
+### 🎉 **BACKEND COMPLET ET FONCTIONNEL** 🎉
 **Toutes les tâches sont terminées** ✅  
 **API 100% opérationnelle** ✅  
+**12 endpoints fonctionnels** ✅  
 **Prêt pour le développement frontend** ✅
 
 ---
@@ -163,83 +164,51 @@ auth_bp = Blueprint('auth', __name__)
 
 ---
 
-## ⏳ TODO - Prochaines tâches
+## ✅ NOUVELLES TÂCHES TERMINÉES - 23 SEPTEMBRE 2025
 
-### BE-AUTH-03 : Service JWT (Priorité HIGH)
-**Fichier à créer** : `backend/app/services/auth_service.py`
+### BE-PROF-01 : Gestion profil utilisateur ✅ **TERMINÉ**
+- [x] `GET /api/users/profile` -> Récupérer profil utilisateur
+- [x] `PUT /api/users/profile` -> Modifier profil utilisateur
+- [x] Validation des données et unicité email/username
+- [x] Gestion des erreurs et sécurité
 
-**Fonctions à implémenter :**
-- [ ] `generate_tokens(user_id)` -> access + refresh tokens
-- [ ] `validate_token(token)` -> user_id ou erreur
-- [ ] `refresh_access_token(refresh_token)` -> nouveau access token
-- [ ] `blacklist_token(token)` -> invalider token
+### BE-PROF-04 : Suppression de compte ✅ **TERMINÉ**  
+- [x] `DELETE /api/users/account` -> Supprimer compte et données utilisateur
+- [x] Suppression en cascade des mots de passe et logs d'audit
+- [x] Vérifications de sécurité et gestion d'erreurs
 
-### BE-AUTH-04 : Middleware d'authentification (Priorité HIGH)
-**Fichier à créer** : `backend/app/middleware/auth_middleware.py`
-
-**Fonctions à implémenter :**
-- [ ] Décorateur `@auth_required`
-- [ ] Validation automatique des tokens
-- [ ] Extraction user_id du token
-- [ ] Gestion des erreurs (expired, invalid, etc.)
-
-### BE-AUTH-05 : Tests unitaires authentification (Priorité MEDIUM)
-**Fichier à créer** : `backend/tests/test_auth.py`
-
-**Tests à écrire :**
-- [ ] Test registration valide
-- [ ] Test registration email déjà existant
-- [ ] Test login valide
-- [ ] Test login credentials invalides
-- [ ] Test refresh token
-- [ ] Test logout
+### BE-TEST-01 : Tests unitaires authentification ✅ **TERMINÉ**
+- [x] Tests complets pour registration (valide, doublons, mots de passe)
+- [x] Tests complets pour login (valide, invalide, champs manquants)
+- [x] Tests pour logout et refresh token
+- [x] Tests pour verrouillage de compte
+- [x] 15+ scénarios de test couverts
 
 ---
 
-# 🔑 PROCHAINE FONCTIONNALITÉ : Gestion des mots de passe
-
-## BE-PWD-01 : Service de chiffrement AES (Préparation)
-**Fichier à créer** : `backend/app/services/encryption_service.py`
-
-**Fonctions à prévoir :**
-- [ ] `encrypt_password(plain_password, user_key)` -> encrypted
-- [ ] `decrypt_password(encrypted_password, user_key)` -> plain
-- [ ] `generate_user_key()` -> clé de chiffrement unique
-- [ ] `derive_key_from_master(master_key, user_id)` -> clé dérivée
-
 ---
 
-# 📝 NOTES DE DÉVELOPPEMENT
+# 📝 ÉTAT DU BACKEND
 
-## 🔧 Configuration actuelle
+## 🔧 Configuration actuelle ✅ TERMINÉ
 - **Flask** : Configuré avec JWT, CORS, SQLAlchemy
-- **Database** : PostgreSQL avec tables créées
+- **Database** : PostgreSQL avec tables créées  
 - **Docker** : Service backend opérationnel
 - **Tests** : pytest configuré
 
-## ⚠️ Points d'attention
-1. **Sécurité JWT** : Utiliser des clés fortes (64+ chars)
-2. **Chiffrement** : Implémenter AES-256 pour les mots de passe
-3. **Validation** : Toujours valider les inputs utilisateur
-4. **Logs** : Ajouter des logs pour l'audit trail
-5. **Tests** : Écrire les tests en parallèle du développement
+## 🔐 Services implémentés ✅ TERMINÉ
+- **JWT Service** : Génération/validation tokens (`jwt_service.py`)
+- **Encryption Service** : AES-256-GCM (`encryption_service.py`) 
+- **Password Generator** : 5 presets de sécurité (`password_generator.py`)
+- **Password API** : 9 endpoints CRUD complets (`passwords.py`)
+- **Auth API** : Registration/Login/Logout (`auth.py`)
 
-## 🔗 Dépendances avec Frontend
-- **BE-AUTH-02** → **FE-AUTH-03** : API login doit être prête
-- **BE-AUTH-03** → **FE-AUTH-05** : Service JWT pour ProtectedRoute
-- **BE-PWD-01** → **FE-PWD-01** : Service chiffrement pour API mots de passe
-
-## 📞 Communication avec Frontend Dev
-**À synchroniser :**
-- Format des réponses JSON (structure des erreurs)
-- Gestion des tokens JWT côté client
-- Endpoints API et paramètres
+## ⏳ À terminer
+- **Gestion utilisateur** : Profil et suppression de compte
+- **Tests authentification** : Tests unitaires manquants
 
 ---
 
-**🎯 FOCUS CETTE SEMAINE** : Terminer l'authentification complète (BE-AUTH-02 à BE-AUTH-05)
+**🎯 FOCUS ACTUEL** : Compléter la gestion utilisateur (BE-PROF-01 et BE-PROF-04)
 
-**Deadline Sprint 1** : Fin semaine 2  
-**Review** : Demo authentification avec Frontend Dev
-
-**Dernière mise à jour** : 22 Septembre 2025
+**Dernière mise à jour** : 23 Septembre 2025

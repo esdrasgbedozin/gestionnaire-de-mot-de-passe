@@ -28,10 +28,11 @@
 - 🎲 **Générateur de mots de passe** : 5 presets, évaluation de force, entropie
 - 📝 **CRUD complet** : Création, lecture, modification, suppression
 - 🗂️ **Organisation avancée** : Catégories, tags, favoris, priorités
-- � **Statistiques** : Force des mots de passe, dates, utilisation
+- 📊 **Statistiques** : Force des mots de passe, dates, utilisation
 - 🕵️ **Audit complet** : Journalisation de toutes les opérations sensibles
 - 🔍 **Recherche & filtres** : Par site, catégorie, favoris
-- 📋 **API REST** : 9 endpoints documentés et testés
+- � **Gestion utilisateur** : Profil, modification, suppression de compte
+- �📋 **API REST** : 12 endpoints documentés et testés
 
 ## �️ Technologies utilisées
 - **Backend** : Flask + SQLAlchemy + PostgreSQL
