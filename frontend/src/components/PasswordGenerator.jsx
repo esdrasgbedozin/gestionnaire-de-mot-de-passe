@@ -184,7 +184,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
           {/* Mot de passe généré */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Mot de passe généré
+              Password generated
             </label>
             <div className="relative">
               <input

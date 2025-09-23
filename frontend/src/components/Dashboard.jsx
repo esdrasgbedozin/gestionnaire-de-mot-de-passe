@@ -15,6 +15,8 @@ import {
   MoonIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
+import passwordService from '../services/passwordService';
+import { calculatePasswordStats, formatRelativeDate, getRecentPasswords } from '../utils/passwordStats';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
@@ -22,6 +24,18 @@ const Dashboard = () => {
   const location = useLocation();
   const [darkMode, setDarkMode] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [passwords, setPasswords] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [stats, setStats] = useState({
+    total: 0,
+    weak: 0,
+    medium: 0,
+    strong: 0,
+    categories: 0,
+    favorites: 0,
+    recentlyAdded: 0,
+  });
 
   useEffect(() => {
     setIsAnimating(true);
@@ -31,7 +45,48 @@ const Dashboard = () => {
       setDarkMode(true);
       document.documentElement.classList.add('dark');
     }
+    
+    // Charger les mots de passe
+    loadPasswords();
   }, []);
+
+  const loadPasswords = async () => {
+    try {
+      setLoading(true);
+      const result = await passwordService.getPasswords();
+      
+      if (result.success) {
+        const passwordList = result.data.passwords || [];
+        setPasswords(passwordList);
+        
+        // Calculer les statistiques réelles
+        const calculatedStats = calculatePasswordStats(passwordList);
+        setStats(calculatedStats);
+
+        // Calculer l'activité récente
+        const recent = getRecentPasswords(passwordList, 7); // Last 7 days
+        const recentActivities = recent.map(pwd => {
+          const wasUpdated = pwd.updated_at && pwd.updated_at !== pwd.created_at;
+          return {
+            id: pwd.id,
+            type: wasUpdated ? 'updated' : 'created',
+            siteName: pwd.site_name,
+            date: wasUpdated ? pwd.updated_at : pwd.created_at,
+            relativeDate: formatRelativeDate(wasUpdated ? pwd.updated_at : pwd.created_at)
+          };
+        }).slice(0, 5); // Afficher seulement les 5 plus récents
+
+        setRecentActivity(recentActivities);
+      } else {
+        toast.error('Error loading passwords');
+      }
+    } catch (error) {
+      console.error('Error loading passwords:', error);
+      toast.error('Error loading passwords');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -57,11 +112,36 @@ const Dashboard = () => {
     navigate(path);
   };
 
-  const stats = [
-    { name: 'Total Passwords', value: '12', icon: KeyIcon, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { name: 'Weak Passwords', value: '3', icon: ShieldCheckIcon, color: 'text-red-600', bg: 'bg-red-100' },
-    { name: 'Categories', value: '5', icon: HomeIcon, color: 'text-green-600', bg: 'bg-green-100' },
-    { name: 'Last Backup', value: '2 days', icon: UserIcon, color: 'text-purple-600', bg: 'bg-purple-100' },
+  // Configuration des cartes de statistiques avec données réelles
+  const statsCards = [
+    { 
+      name: 'Total Passwords', 
+      value: loading ? '...' : stats.total.toString(), 
+      icon: KeyIcon, 
+      color: 'text-blue-600', 
+      bg: 'bg-blue-100' 
+    },
+    { 
+      name: 'Weak Passwords', 
+      value: loading ? '...' : stats.weak.toString(), 
+      icon: ShieldCheckIcon, 
+      color: 'text-red-600', 
+      bg: 'bg-red-100' 
+    },
+    { 
+      name: 'Categories', 
+      value: loading ? '...' : stats.categories.toString(), 
+      icon: HomeIcon, 
+      color: 'text-green-600', 
+      bg: 'bg-green-100' 
+    },
+    { 
+      name: 'Recently Added', 
+      value: loading ? '...' : stats.recentlyAdded.toString(), 
+      icon: UserIcon, 
+      color: 'text-purple-600', 
+      bg: 'bg-purple-100' 
+    },
   ];
 
   return (
@@ -163,7 +243,7 @@ const Dashboard = () => {
         <main className={`p-6 transition-all duration-700 ${isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {stats.map((stat, index) => (
+            {statsCards.map((stat, index) => (
               <div 
                 key={stat.name} 
                 className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-200 transform hover:scale-105 animate-fadeInUp`}
@@ -198,7 +278,7 @@ const Dashboard = () => {
               </button>
               
               <button 
-                onClick={() => toast.info('Security check feature coming soon!')}
+                onClick={() => handleNavigation('/security-check')}
                 className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
               >
                 <ShieldCheckIcon className="h-8 w-8 text-gray-400 group-hover:text-green-500" />
@@ -225,25 +305,49 @@ const Dashboard = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Activity</h2>
             <div className="space-y-4">
-              <div className="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              {loading ? (
+                <div className="animate-pulse space-y-3">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                      <div className="w-2 h-2 bg-gray-300 rounded-full"></div>
+                      <div className="ml-4 flex-1">
+                        <div className="h-4 bg-gray-300 rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Password created for Gmail</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">2 hours ago</p>
+              ) : recentActivity.length > 0 ? (
+                recentActivity.map(activity => (
+                  <div key={activity.id} className="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                    <div className="flex-shrink-0">
+                      <div className={`w-2 h-2 rounded-full ${
+                        activity.type === 'created' ? 'bg-green-500' : 'bg-blue-500'
+                      }`}></div>
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-900 dark:text-white">
+                        Password {activity.type === 'created' ? 'created' : 'updated'} for {activity.siteName}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {activity.relativeDate}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">
+                    No recent activity
+                  </p>
+                  <button
+                    onClick={() => handleNavigation('/vault')}
+                    className="mt-2 text-indigo-600 dark:text-indigo-400 text-sm hover:underline"
+                  >
+                    Add your first password
+                  </button>
                 </div>
-              </div>
-              
-              <div className="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                <div className="flex-shrink-0">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">Security check completed</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">1 day ago</p>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </main>

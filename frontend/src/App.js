@@ -6,6 +6,7 @@ import Register from './components/Register';
 import Dashboard from './components/Dashboard';
 import Vault from './pages/Vault';
 import Settings from './pages/Settings';
+import SecurityCheck from './pages/SecurityCheck';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 import { TestPasswordCard, TestPasswordGenerator, BasicRenderTest } from './test/ComponentTest';
@@ -61,6 +62,12 @@ function App() {
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/security-check" element={
+              <ProtectedRoute>
+                <SecurityCheck />
               </ProtectedRoute>
             } />
             
