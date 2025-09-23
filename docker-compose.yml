@@ -1,0 +1,75 @@
+services:
+  # Base de données PostgreSQL
+  database:
+    image: postgres:15-alpine
+    container_name: password_manager_db
+    environment:
+      POSTGRES_DB: password_manager
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secure_password_2024
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    # Port removed for security - database only accessible from internal network
+    # ports:
+    #   - "5432:5432"
+    networks:
+      - password_manager_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d password_manager"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Backend Flask
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: password_manager_backend
+    environment:
+      - FLASK_ENV=development
+      - DATABASE_URL=postgresql://admin:secure_password_2024@database:5432/password_manager
+      - JWT_SECRET_KEY=K8vQnH_u4rYpZ2xFm9LwA3jTdN6sE5cR7bGhU0iV1nO8lP-qWzXyKmJuBvC4sD9fH2aI5tY3rE
+      - ENCRYPTION_KEY=mF3kL9jR2wN8xQ5pT1vC6zE0hU4gS7aY9bM5dK8fJ2iO1lP3nG7qW0uX6cV9rT
+    ports:
+      - "8080:5000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - password_manager_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: password_manager_frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080/api
+      - PROXY=http://backend:5000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - password_manager_network
+
+networks:
+  password_manager_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
