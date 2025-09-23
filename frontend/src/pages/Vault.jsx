@@ -30,14 +30,23 @@ const Vault = () => {
   const [editingPassword, setEditingPassword] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
 
-  // Catégories disponibles
+  // Fonction pour calculer les compteurs de catégories
+  const getCategoryCount = (categoryId) => {
+    if (categoryId === 'all') return passwords.length;
+    return passwords.filter(password => 
+      password.category && password.category.toLowerCase() === categoryId.toLowerCase()
+    ).length;
+  };
+
+  // Catégories disponibles avec compteurs dynamiques
   const categories = [
-    { id: 'all', name: 'Tous', icon: KeyIcon, count: passwords.length },
-    { id: 'social', name: 'Réseaux sociaux', icon: ShieldCheckIcon, count: 0 },
-    { id: 'work', name: 'Travail', icon: ShieldCheckIcon, count: 0 },
-    { id: 'personal', name: 'Personnel', icon: ShieldCheckIcon, count: 0 },
-    { id: 'banking', name: 'Banque', icon: ShieldCheckIcon, count: 0 },
-    { id: 'shopping', name: 'Shopping', icon: ShieldCheckIcon, count: 0 },
+    { id: 'all', name: 'All', icon: KeyIcon, count: getCategoryCount('all') },
+    { id: 'Social', name: 'Social Media', icon: ShieldCheckIcon, count: getCategoryCount('Social') },
+    { id: 'Email', name: 'Email', icon: ShieldCheckIcon, count: getCategoryCount('Email') },
+    { id: 'Finance', name: 'Finance', icon: ShieldCheckIcon, count: getCategoryCount('Finance') },
+    { id: 'Work', name: 'Work', icon: ShieldCheckIcon, count: getCategoryCount('Work') },
+    { id: 'Personal', name: 'Personal', icon: ShieldCheckIcon, count: getCategoryCount('Personal') },
+    { id: 'Shopping', name: 'Shopping', icon: ShieldCheckIcon, count: getCategoryCount('Shopping') },
   ];
 
   // Charger les mots de passe au montage du composant
@@ -47,6 +56,26 @@ const Vault = () => {
 
   // Filtrer les mots de passe quand la recherche ou la catégorie change
   useEffect(() => {
+    const filterPasswords = () => {
+      let filtered = passwords;
+
+      // Filtrer par recherche
+      if (searchTerm) {
+        filtered = filtered.filter(password => 
+          password.site_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          password.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (password.notes && password.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+      }
+
+      // Filtrer par catégorie
+      if (selectedCategory !== 'all') {
+        filtered = filtered.filter(password => password.category === selectedCategory);
+      }
+
+      setFilteredPasswords(filtered);
+    };
+
     filterPasswords();
   }, [passwords, searchTerm, selectedCategory]);
 
@@ -66,26 +95,6 @@ const Vault = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterPasswords = () => {
-    let filtered = passwords;
-
-    // Filtrer par recherche
-    if (searchTerm) {
-      filtered = filtered.filter(password => 
-        password.site_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        password.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (password.notes && password.notes.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    // Filtrer par catégorie
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(password => password.category === selectedCategory);
-    }
-
-    setFilteredPasswords(filtered);
   };
 
   const handleAddPassword = () => {
@@ -143,7 +152,7 @@ const Vault = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Chargement de votre coffre-fort...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading your vault...</p>
         </div>
       </div>
     );
@@ -158,10 +167,10 @@ const Vault = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Coffre-fort de {user?.username}
+                  Vault of {user?.username}
                 </h1>
                 <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                  {passwords.length} mot(s) de passe stocké(s) en sécurité
+                  {passwords.length} password(s) stored securely
                 </p>
               </div>
               <div className="flex space-x-3">
@@ -170,7 +179,7 @@ const Vault = () => {
                   className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
                 >
                   <ShieldCheckIcon className="h-4 w-4 mr-2" />
-                  Générateur
+                  Generator
                 </button>
                 <button
                   onClick={handleAddPassword}
@@ -191,7 +200,7 @@ const Vault = () => {
           <div className="w-64 flex-shrink-0">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="p-4">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Catégories</h3>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Categories</h3>
                 <nav className="space-y-1">
                   {categories.map((category) => (
                     <button

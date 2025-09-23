@@ -26,12 +26,12 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
   const [errors, setErrors] = useState({});
 
   const categories = [
-    { value: 'personal', label: 'Personnel', icon: '👤' },
-    { value: 'work', label: 'Travail', icon: '💼' },
-    { value: 'social', label: 'Réseaux sociaux', icon: '📱' },
-    { value: 'banking', label: 'Banque', icon: '🏦' },
+    { value: 'personal', label: 'Personal', icon: '👤' },
+    { value: 'work', label: 'Work', icon: '💼' },
+    { value: 'social', label: 'Social Media', icon: '📱' },
+    { value: 'banking', label: 'Banking', icon: '🏦' },
     { value: 'shopping', label: 'Shopping', icon: '🛒' },
-    { value: 'other', label: 'Autre', icon: '🔐' }
+    { value: 'other', label: 'Other', icon: '🔐' }
   ];
 
   // Initialiser le formulaire avec les données du mot de passe à éditer

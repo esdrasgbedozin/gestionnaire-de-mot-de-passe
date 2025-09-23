@@ -70,11 +70,16 @@ export const calculatePasswordStats = (passwords) => {
   const siteCounts = {};
 
   passwords.forEach(pwd => {
-    // Évaluer la force
-    const strength = evaluatePasswordStrength(pwd.password);
-    if (strength.level === 'weak') stats.weak++;
-    else if (strength.level === 'medium') stats.medium++;
-    else stats.strong++;
+    // Évaluer la force basée sur le score du backend (1-5)
+    // 1-2 = weak, 3 = medium, 4-5 = strong
+    const strength_score = pwd.password_strength || 1;
+    if (strength_score <= 2) {
+      stats.weak++;
+    } else if (strength_score === 3) {
+      stats.medium++;
+    } else {
+      stats.strong++;
+    }
 
     // Catégories
     if (pwd.category) {
