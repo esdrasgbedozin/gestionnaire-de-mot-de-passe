@@ -261,6 +261,49 @@ const passwordService = {
       };
     }
   },
+
+  /**
+   * Export all passwords with decrypted passwords for backup
+   */
+  async exportPasswords() {
+    try {
+      // First get the list of all passwords (without decrypted passwords)
+      const listResult = await this.getPasswords(1, 1000); // Get large number to ensure all passwords
+      if (!listResult.success) {
+        return listResult;
+      }
+
+      const passwords = listResult.data.passwords || [];
+      const decryptedPasswords = [];
+
+      // Get each password individually to get decrypted version
+      for (const pwd of passwords) {
+        const passwordResult = await this.getPassword(pwd.id);
+        if (passwordResult.success) {
+          decryptedPasswords.push(passwordResult.data);
+        } else {
+          // If we can't decrypt one password, include it without the password field
+          decryptedPasswords.push({
+            ...pwd,
+            password: '[DECRYPTION_FAILED]'
+          });
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          passwords: decryptedPasswords,
+          total: decryptedPasswords.length
+        }
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Failed to export passwords',
+      };
+    }
+  },
 };
 
 export default passwordService;

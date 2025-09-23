@@ -28,7 +28,6 @@ const Settings = () => {
   
     // Profile settings
   const [profileData, setProfileData] = useState({
-    username: '',
     email: '',
     currentPassword: '',
     newPassword: '',
@@ -61,7 +60,6 @@ const Settings = () => {
     if (user) {
       setProfileData(prev => ({
         ...prev,
-        username: user.username || '',
         email: user.email || ''
       }));
     }
@@ -80,8 +78,7 @@ const Settings = () => {
           ...prev,
           totalPasswords: passwords.length,
           strongPasswords: passwords.filter(p => 
-            p.password && p.password.length >= 12 && /[A-Z]/.test(p.password) && 
-            /[a-z]/.test(p.password) && /[0-9]/.test(p.password) && /[^A-Za-z0-9]/.test(p.password)
+            p.password_strength && p.password_strength >= 4 // Backend scores 4-5 are strong
           ).length
         }));
       }
@@ -116,7 +113,6 @@ const Settings = () => {
     setLoading(true);
     try {
       const updateData = {
-        username: profileData.username,
         email: profileData.email
       };
 
@@ -155,16 +151,21 @@ const Settings = () => {
   const handleExportData = async () => {
     setExportLoading(true);
     try {
-      const result = await passwordService.getPasswords();
+      console.log('🔍 Starting export...');
+      const result = await passwordService.exportPasswords();
+      console.log('🔍 Export result:', result);
       
       if (result.success) {
         const passwords = result.data.passwords || [];
+        console.log('🔍 Passwords received:', passwords);
+        
         const exportData = {
           exportDate: new Date().toISOString(),
           userEmail: user?.email,
           passwords: passwords.map(pwd => ({
             site_name: pwd.site_name,
             username: pwd.username,
+            password: pwd.password, // Include decrypted password
             site_url: pwd.site_url,
             category: pwd.category,
             notes: pwd.notes,
@@ -172,6 +173,8 @@ const Settings = () => {
             updated_at: pwd.updated_at
           }))
         };
+        
+        console.log('🔍 Final export data:', exportData);
 
         const blob = new Blob([JSON.stringify(exportData, null, 2)], {
           type: 'application/json'
@@ -225,9 +228,9 @@ const Settings = () => {
               <ArrowLeftIcon className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Paramètres</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Settings</h1>
               <p className="text-gray-600 dark:text-gray-400">
-                Gérez votre compte et vos préférences
+                Manage your account and preferences
               </p>
             </div>
           </div>
@@ -261,7 +264,7 @@ const Settings = () => {
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                    Informations du profil
+                    Profile Information
                   </h2>
                   <button
                     onClick={() => setEditingProfile(!editingProfile)}
@@ -278,18 +281,6 @@ const Settings = () => {
 
                 {editingProfile ? (
                   <form onSubmit={handleProfileUpdate} className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Username
-                      </label>
-                      <input
-                        type="text"
-                        value={profileData.username}
-                        onChange={(e) => setProfileData(prev => ({ ...prev, username: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                      />
-                    </div>
-
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Email
@@ -411,12 +402,6 @@ const Settings = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Username
-                      </label>
-                      <p className="text-gray-900 dark:text-white">{user?.username || 'Not set'}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Email
                       </label>
                       <p className="text-gray-900 dark:text-white">{user?.email}</p>
@@ -438,7 +423,7 @@ const Settings = () => {
             {activeTab === 'security' && (
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                  Paramètres de sécurité
+                  Security Settings
                 </h2>
 
                 <div className="space-y-6">
@@ -448,7 +433,7 @@ const Settings = () => {
                       <div className="flex items-center">
                         <KeyIcon className="h-8 w-8 text-blue-600" />
                         <div className="ml-4">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Total mots de passe</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Total Passwords</p>
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {userStats.totalPasswords}
                           </p>
@@ -460,7 +445,7 @@ const Settings = () => {
                       <div className="flex items-center">
                         <ShieldCheckIcon className="h-8 w-8 text-green-600" />
                         <div className="ml-4">
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Mots de passe forts</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">Strong Passwords</p>
                           <p className="text-2xl font-bold text-gray-900 dark:text-white">
                             {userStats.strongPasswords}
                           </p>
@@ -472,17 +457,17 @@ const Settings = () => {
                   {/* Action de sécurité */}
                   <div className="border-t pt-6">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                      Analyse de sécurité
+                      Security Analysis
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Analysez la sécurité de tous vos mots de passe et obtenez des recommandations personnalisées.
+                      Analyze the security of all your passwords and get personalized recommendations.
                     </p>
                     <button
                       onClick={() => navigate('/security-check')}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center"
                     >
                       <ShieldCheckIcon className="h-4 w-4 mr-2" />
-                      Lancer l'analyse de sécurité
+                      Launch Security Check
                     </button>
                   </div>
                 </div>
@@ -493,7 +478,7 @@ const Settings = () => {
             {activeTab === 'preferences' && (
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                  Préférences
+                  Preferences
                 </h2>
 
                 <div className="space-y-6">
@@ -501,10 +486,10 @@ const Settings = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white">
-                        Thème sombre
+                        Dark Theme
                       </h3>
                       <p className="text-gray-600 dark:text-gray-400">
-                        Utiliser le thème sombre pour réduire la fatigue oculaire
+                        Use dark theme to reduce eye strain
                       </p>
                     </div>
                     <button
@@ -528,17 +513,17 @@ const Settings = () => {
             {activeTab === 'data' && (
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
-                  Gestion des données
+                  Data Management
                 </h2>
 
                 <div className="space-y-6">
                   {/* Export */}
                   <div className="border border-blue-200 dark:border-blue-700 rounded-lg p-4">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      Exporter vos données
+                      Export your data
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Téléchargez une copie de vos données pour vos archives personnelles.
+                      Download a copy of your data for your personal records.
                     </p>
                     <button
                       onClick={handleExportData}
@@ -550,7 +535,7 @@ const Settings = () => {
                       ) : (
                         <KeyIcon className="h-4 w-4 mr-2" />
                       )}
-                      Exporter mes données
+                      Export my data
                     </button>
                   </div>
                 </div>
