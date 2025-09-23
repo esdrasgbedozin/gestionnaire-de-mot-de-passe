@@ -176,7 +176,7 @@ const authService = {
         const user = JSON.parse(storedUser);
         
         // Vérifier que le token est toujours valide
-        const response = await api.get('/auth/me');
+        const response = await api.get('/users/profile');
         const freshUser = response.data.user;
         
         // Mettre à jour les données si elles ont changé
@@ -189,7 +189,7 @@ const authService = {
       }
 
       // Si pas de données locales, récupérer depuis l'API
-      const response = await api.get('/auth/me');
+      const response = await api.get('/users/profile');
       const user = response.data.user;
       localStorage.setItem('user', JSON.stringify(user));
       

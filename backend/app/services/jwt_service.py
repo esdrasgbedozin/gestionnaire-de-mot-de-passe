@@ -134,10 +134,14 @@ def token_required(f):
         if payload.get('type') != 'access':
             return jsonify({'error': 'Invalid token type'}), 401
         
-        # Ajouter l'utilisateur actuel au contexte
-        current_user_id = payload['user_id']
+        # Récupérer l'utilisateur complet
+        from app.models import User
+        current_user = User.query.get(payload['user_id'])
         
-        return f(current_user_id=current_user_id, *args, **kwargs)
+        if not current_user:
+            return jsonify({'error': 'User not found'}), 401
+        
+        return f(current_user, *args, **kwargs)
     
     return decorated
 
