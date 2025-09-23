@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   HomeIcon, 
   KeyIcon, 
@@ -17,6 +18,8 @@ import toast from 'react-hot-toast';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [darkMode, setDarkMode] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -50,6 +53,10 @@ const Dashboard = () => {
     }
   };
 
+  const handleNavigation = (path) => {
+    navigate(path);
+  };
+
   const stats = [
     { name: 'Total Passwords', value: '12', icon: KeyIcon, color: 'text-blue-600', bg: 'bg-blue-100' },
     { name: 'Weak Passwords', value: '3', icon: ShieldCheckIcon, color: 'text-red-600', bg: 'bg-red-100' },
@@ -69,22 +76,24 @@ const Dashboard = () => {
         <nav className="mt-8">
           <div className="px-4 space-y-2">
             {[
-              { name: 'Dashboard', icon: HomeIcon, active: true },
-              { name: 'Passwords', icon: KeyIcon, active: false },
-              { name: 'Settings', icon: CogIcon, active: false },
+              { name: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
+              { name: 'Passwords', icon: KeyIcon, path: '/vault' },
+              { name: 'Settings', icon: CogIcon, path: '/settings' },
             ].map((item) => (
-              <a
+              <button
                 key={item.name}
-                href="#"
-                className={`group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
-                  item.active
+                onClick={() => handleNavigation(item.path)}
+                className={`w-full group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
+                  location.pathname === item.path
                     ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
-                <item.icon className={`mr-3 h-5 w-5 ${item.active ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
+                <item.icon className={`mr-3 h-5 w-5 ${
+                  location.pathname === item.path ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'
+                }`} />
                 {item.name}
-              </a>
+              </button>
             ))}
           </div>
         </nav>
@@ -177,7 +186,10 @@ const Dashboard = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm p-6 mb-8">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200 group">
+              <button 
+                onClick={() => handleNavigation('/vault')}
+                className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200 group"
+              >
                 <PlusIcon className="h-8 w-8 text-gray-400 group-hover:text-indigo-500" />
                 <div className="ml-4 text-left">
                   <p className="font-medium text-gray-900 dark:text-white">Add Password</p>
@@ -185,7 +197,10 @@ const Dashboard = () => {
                 </div>
               </button>
               
-              <button className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group">
+              <button 
+                onClick={() => toast.info('Security check feature coming soon!')}
+                className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all duration-200 group"
+              >
                 <ShieldCheckIcon className="h-8 w-8 text-gray-400 group-hover:text-green-500" />
                 <div className="ml-4 text-left">
                   <p className="font-medium text-gray-900 dark:text-white">Security Check</p>
@@ -193,7 +208,10 @@ const Dashboard = () => {
                 </div>
               </button>
               
-              <button className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 group">
+              <button 
+                onClick={() => handleNavigation('/settings')}
+                className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 group"
+              >
                 <CogIcon className="h-8 w-8 text-gray-400 group-hover:text-purple-500" />
                 <div className="ml-4 text-left">
                   <p className="font-medium text-gray-900 dark:text-white">Settings</p>
