@@ -1,0 +1,35 @@
+# Backend Flask - Gestionnaire de mots de passe
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Flask-Migrate==4.0.5
+Flask-JWT-Extended==4.5.3
+Flask-CORS==4.0.0
+Flask-Bcrypt==1.0.1
+Flask-Marshmallow==0.15.0
+marshmallow-sqlalchemy==0.29.0
+
+# Base de données PostgreSQL
+psycopg2-binary==2.9.7
+
+# Sécurité et cryptographie
+cryptography==41.0.4
+PyJWT==2.8.0  # Pour notre service JWT personnalisé
+pyotp==2.9.0  # Pour 2FA si implémenté plus tard
+
+# Validation et utilitaires
+email-validator==2.0.0
+bleach==6.0.0  # XSS protection and HTML sanitization
+python-dotenv==1.0.0
+requests==2.31.0
+
+# Tests et développement
+pytest==7.4.2
+pytest-flask==1.2.0
+pytest-cov==4.1.0
+
+# Production et monitoring
+gunicorn==21.2.0
+python-json-logger==2.0.7
+
+# Sécurité renforcée
+Werkzeug==2.3.7
