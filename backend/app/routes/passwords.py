@@ -388,3 +388,135 @@ def evaluate_password_strength(current_user):
         log_audit_event('EVALUATE_STRENGTH', success=False, error_message=str(e), user_id=user_id)
         current_app.logger.error(f"Erreur lors de l'évaluation de la force: {e}")
         return jsonify({'error': 'Erreur interne du serveur'}), 500
+
+
+@passwords_bp.route('/<string:password_id>', methods=['PUT'])
+@token_required
+def update_password(current_user, password_id):
+    """Mettre à jour un mot de passe existant"""
+    try:
+        user_id = current_user.id
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'Données requises'}), 400
+        
+        # Valider les données (mise à jour partielle autorisée)
+        validation_error = validate_password_data(data, is_update=True)
+        if validation_error:
+            return jsonify({'error': validation_error}), 400
+        
+        # Vérifier que le mot de passe appartient à l'utilisateur
+        password_obj = Password.query.filter_by(
+            id=password_id,
+            user_id=user_id
+        ).first()
+        
+        if not password_obj:
+            log_audit_event('UPDATE_PASSWORD', success=False, 
+                          error_message='Mot de passe non trouvé', 
+                          resource_id=password_id, user_id=user_id)
+            return jsonify({'error': 'Mot de passe non trouvé'}), 404
+        
+        # Mettre à jour les champs fournis
+        if 'site_name' in data:
+            password_obj.site_name = data['site_name']
+        if 'username' in data:
+            password_obj.username = data['username']
+        if 'site_url' in data:
+            password_obj.site_url = data.get('site_url', '')
+        if 'category' in data:
+            password_obj.category = data.get('category', 'personal')
+        if 'notes' in data:
+            password_obj.notes = data.get('notes', '')
+        if 'email' in data:
+            password_obj.email = data.get('email', '')
+        if 'requires_2fa' in data:
+            password_obj.requires_2fa = data.get('requires_2fa', False)
+        if 'is_favorite' in data:
+            password_obj.is_favorite = data.get('is_favorite', False)
+        
+        # Si le mot de passe est modifié, le chiffrer et calculer la force
+        if 'password' in data:
+            try:
+                user_key = EncryptionService.generate_user_key(str(user_id), "temp_key")  # À améliorer
+                encrypted_password = EncryptionService.encrypt_password(data['password'], user_key)
+                password_obj.encrypted_password = encrypted_password
+                
+                strength_info = PasswordGenerator.evaluate_strength(data['password'])
+                password_obj.password_strength = strength_info['strength']
+                password_obj.password_changed_at = datetime.now(timezone.utc)
+            except Exception as encrypt_error:
+                log_audit_event('UPDATE_PASSWORD', success=False, error_message=f"Erreur chiffrement: {str(encrypt_error)}", 
+                               resource_id=password_id, user_id=user_id)
+                return jsonify({'error': 'Erreur lors du chiffrement'}), 500
+        
+        password_obj.updated_at = datetime.now(timezone.utc)
+        
+        db.session.commit()
+        
+        log_audit_event('UPDATE_PASSWORD', resource_id=password_id, user_id=user_id)
+        
+        # Retourner le mot de passe mis à jour (sans le déchiffrer pour la sécurité)
+        password_dict = {
+            'id': password_obj.id,
+            'site_name': password_obj.site_name,
+            'username': password_obj.username,
+            'site_url': password_obj.site_url,
+            'category': password_obj.category,
+            'notes': password_obj.notes,
+            'email': password_obj.email,
+            'password_strength': password_obj.password_strength,
+            'requires_2fa': password_obj.requires_2fa,
+            'is_favorite': password_obj.is_favorite,
+            'created_at': password_obj.created_at.isoformat(),
+            'updated_at': password_obj.updated_at.isoformat(),
+            'password_changed_at': password_obj.password_changed_at.isoformat() if password_obj.password_changed_at else None,
+            'last_used': password_obj.last_used.isoformat() if password_obj.last_used else None,
+        }
+        
+        return jsonify({
+            'message': 'Mot de passe mis à jour avec succès',
+            'password': password_dict
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        log_audit_event('UPDATE_PASSWORD', success=False, error_message=str(e), 
+                       resource_id=password_id, user_id=user_id)
+        current_app.logger.error(f"Erreur lors de la mise à jour du mot de passe: {e}")
+        return jsonify({'error': 'Erreur interne du serveur'}), 500
+
+
+@passwords_bp.route('/<string:password_id>', methods=['DELETE'])
+@token_required
+def delete_password(current_user, password_id):
+    """Supprimer un mot de passe"""
+    try:
+        user_id = current_user.id
+        
+        # Vérifier que le mot de passe appartient à l'utilisateur
+        password_obj = Password.query.filter_by(
+            id=password_id,
+            user_id=user_id
+        ).first()
+        
+        if not password_obj:
+            log_audit_event('DELETE_PASSWORD', success=False, 
+                          error_message='Mot de passe non trouvé', 
+                          resource_id=password_id, user_id=user_id)
+            return jsonify({'error': 'Mot de passe non trouvé'}), 404
+        
+        db.session.delete(password_obj)
+        db.session.commit()
+        
+        log_audit_event('DELETE_PASSWORD', resource_id=password_id, user_id=user_id)
+        
+        return jsonify({'message': 'Mot de passe supprimé avec succès'}), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        log_audit_event('DELETE_PASSWORD', success=False, error_message=str(e), 
+                       resource_id=password_id, user_id=user_id)
+        current_app.logger.error(f"Erreur lors de la suppression du mot de passe: {e}")
+        return jsonify({'error': 'Erreur interne du serveur'}), 500

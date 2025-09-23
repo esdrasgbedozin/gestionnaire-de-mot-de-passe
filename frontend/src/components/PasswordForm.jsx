@@ -8,6 +8,7 @@ import {
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import passwordService from '../services/passwordService';
 
 const PasswordForm = ({ password, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -116,21 +117,21 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
     const newErrors = {};
 
     if (!formData.site_name.trim()) {
-      newErrors.site_name = 'Le nom du site est requis';
+      newErrors.site_name = 'Site name is required';
     }
 
     if (!formData.username.trim()) {
-      newErrors.username = 'Le nom d\'utilisateur est requis';
+      newErrors.username = 'Username is required';
     }
 
     if (!formData.password.trim()) {
-      newErrors.password = 'Le mot de passe est requis';
+      newErrors.password = 'Password is required';
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+      newErrors.password = 'Password must be at least 6 characters long';
     }
 
     if (formData.site_url && !isValidUrl(formData.site_url)) {
-      newErrors.site_url = 'L\'URL n\'est pas valide';
+      newErrors.site_url = 'Invalid URL';
     }
 
     setErrors(newErrors);
@@ -150,36 +151,31 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
     e.preventDefault();
     
     if (!validateForm()) {
-      toast.error('Veuillez corriger les erreurs du formulaire');
+      toast.error('Please correct the form errors');
       return;
     }
 
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const url = password ? `/api/passwords/${password.id}` : '/api/passwords';
-      const method = password ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        onSave();
-        toast.success(password ? 'Mot de passe modifié avec succès' : 'Mot de passe ajouté avec succès');
+      let result;
+      if (password) {
+        // Modification d'un mot de passe existant
+        result = await passwordService.updatePassword(password.id, formData);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Erreur lors de la sauvegarde');
+        // Ajout d'un nouveau mot de passe
+        result = await passwordService.createPassword(formData);
+      }
+
+      if (result.success) {
+        toast.success(password ? 'Password updated successfully' : 'Password created successfully');
+        onSave();
+      } else {
+        toast.error(result.error || 'Error saving password');
       }
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error(error.message || 'Erreur lors de la sauvegarde');
+      toast.error('Error saving password');
     } finally {
       setLoading(false);
     }
@@ -191,7 +187,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
       ...prev,
       password: newPassword
     }));
-    toast.success('Mot de passe généré !');
+    toast.success('Password generated!');
   };
 
   return (
@@ -200,7 +196,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
         {/* En-tête */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {password ? 'Modifier le mot de passe' : 'Ajouter un mot de passe'}
+            {password ? 'Edit Password' : 'Add Password'}
           </h2>
           <button
             onClick={onCancel}
@@ -215,7 +211,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
           {/* Nom du site */}
           <div>
             <label htmlFor="site_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nom du site *
+              Site name *
             </label>
             <input
               type="text"
@@ -239,7 +235,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
           {/* Nom d'utilisateur */}
           <div>
             <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Nom d'utilisateur / Email *
+              Username / Email *
             </label>
             <input
               type="text"
@@ -301,7 +297,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
             {formData.password && (
               <div className="mt-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Force du mot de passe:</span>
+                  <span className="text-gray-600 dark:text-gray-400">Password strength:</span>
                   <span className={`font-medium ${
                     passwordStrength.color === 'green' ? 'text-green-600' :
                     passwordStrength.color === 'yellow' ? 'text-yellow-600' :
@@ -398,7 +394,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
               onClick={onCancel}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-500"
             >
-              Annuler
+              Cancel
             </button>
             <button
               type="submit"
@@ -413,7 +409,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
               ) : (
                 <>
                   <CheckIcon className="h-4 w-4 mr-2" />
-                  {password ? 'Modifier' : 'Ajouter'}
+                  {password ? 'Update' : 'Add'}
                 </>
               )}
             </button>

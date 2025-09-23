@@ -13,6 +13,7 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import passwordService from '../services/passwordService';
 import PasswordCard from '../components/PasswordCard';
 import PasswordForm from '../components/PasswordForm';
 import PasswordGenerator from '../components/PasswordGenerator';
@@ -52,23 +53,16 @@ const Vault = () => {
   const fetchPasswords = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/passwords', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      const result = await passwordService.getPasswords();
 
-      if (response.ok) {
-        const data = await response.json();
-        setPasswords(data.passwords || []);
+      if (result.success) {
+        setPasswords(result.data.passwords || []);
       } else {
-        throw new Error('Erreur lors du chargement des mots de passe');
+        throw new Error(result.error);
       }
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error('Impossible de charger les mots de passe');
+      toast.error('Passwords can not be loaded');
     } finally {
       setLoading(false);
     }
@@ -99,34 +93,41 @@ const Vault = () => {
     setShowAddForm(true);
   };
 
-  const handleEditPassword = (password) => {
-    setEditingPassword(password);
-    setShowAddForm(true);
+  const handleEditPassword = async (password) => {
+    try {
+      // Récupérer le mot de passe déchiffré
+      const result = await passwordService.getPassword(password.id);
+      
+      if (result.success) {
+        // Passer le mot de passe avec le champ 'password' déchiffré
+        setEditingPassword(result.data);
+        setShowAddForm(true);
+      } else {
+        toast.error('Failed to load password for editing');
+      }
+    } catch (error) {
+      console.error('Error loading password for editing:', error);
+      toast.error('Failed to load password for editing');
+    }
   };
 
   const handleDeletePassword = async (passwordId) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce mot de passe ?')) {
+    if (!window.confirm('Are you sure you want to delete this password?')) {
       return;
     }
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/passwords/${passwordId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
+      const result = await passwordService.deletePassword(passwordId);
 
-      if (response.ok) {
-        toast.success('Mot de passe supprimé avec succès');
+      if (result.success) {
+        toast.success('Password deleted successfully');
         fetchPasswords(); // Recharger la liste
       } else {
-        throw new Error('Erreur lors de la suppression');
+        throw new Error(result.error);
       }
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error('Impossible de supprimer le mot de passe');
+      toast.error('Failed to delete password');
     }
   };
 
@@ -134,7 +135,7 @@ const Vault = () => {
     setShowAddForm(false);
     setEditingPassword(null);
     fetchPasswords(); // Recharger la liste
-    toast.success(editingPassword ? 'Mot de passe modifié' : 'Mot de passe ajouté');
+    toast.success(editingPassword ? 'Password updated' : 'Password added');
   };
 
   if (loading) {
@@ -176,7 +177,7 @@ const Vault = () => {
                   className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                 >
                   <PlusIcon className="h-4 w-4 mr-2" />
-                  Ajouter un mot de passe
+                  Add Password
                 </button>
               </div>
             </div>
@@ -226,7 +227,7 @@ const Vault = () => {
                     <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
-                      placeholder="Rechercher dans vos mots de passe..."
+                      placeholder="Search your passwords..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -259,12 +260,12 @@ const Vault = () => {
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
                 <KeyIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                  {passwords.length === 0 ? 'Aucun mot de passe' : 'Aucun résultat'}
+                  {passwords.length === 0 ? 'No passwords yet' : 'No results found'}
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400 mb-6">
                   {passwords.length === 0 
-                    ? 'Commencez par ajouter votre premier mot de passe'
-                    : 'Essayez de modifier vos critères de recherche'
+                    ? 'Start by adding your first password'
+                    : 'Try adjusting your search criteria'
                   }
                 </p>
                 {passwords.length === 0 && (
@@ -273,7 +274,7 @@ const Vault = () => {
                     className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
                   >
                     <PlusIcon className="h-4 w-4 mr-2" />
-                    Ajouter un mot de passe
+                    Add Password
                   </button>
                 )}
               </div>

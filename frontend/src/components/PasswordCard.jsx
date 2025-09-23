@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -12,36 +12,102 @@ import {
   TagIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import passwordService from '../services/passwordService';
 
 const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [decryptedPassword, setDecryptedPassword] = useState(null);
+  const [loadingPassword, setLoadingPassword] = useState(false);
+  const hideTimeoutRef = useRef(null);
+
+  // Auto-hide le mot de passe après 15 secondes
+  useEffect(() => {
+    if (showPassword) {
+      hideTimeoutRef.current = setTimeout(() => {
+        setShowPassword(false);
+        setDecryptedPassword(null);
+      }, 15000); // 15 secondes
+    } else {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+      setDecryptedPassword(null);
+    }
+
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, [showPassword]);
+
+  // Fonction pour basculer la visibilité du mot de passe
+  const togglePasswordVisibility = async () => {
+    if (!showPassword) {
+      // Récupérer le mot de passe déchiffré
+      setLoadingPassword(true);
+      try {
+        const result = await passwordService.getPassword(password.id);
+        if (result.success) {
+          setDecryptedPassword(result.data.password);
+          setShowPassword(true);
+        } else {
+          toast.error('Failed to decrypt password');
+        }
+      } catch (error) {
+        console.error('Erreur lors du déchiffrement:', error);
+        toast.error('Failed to decrypt password');
+      } finally {
+        setLoadingPassword(false);
+      }
+    } else {
+      setShowPassword(false);
+      setDecryptedPassword(null);
+    }
+  };
 
   // Fonction pour copier dans le presse-papiers
   const copyToClipboard = async (text, field) => {
     try {
-      await navigator.clipboard.writeText(text);
-      toast.success(`${field} copié dans le presse-papiers`);
+      // Si on veut copier le mot de passe et qu'il n'est pas déchiffré, le récupérer d'abord
+      if (field === 'Password' && !decryptedPassword) {
+        setLoadingPassword(true);
+        try {
+          const result = await passwordService.getPassword(password.id);
+          if (result.success) {
+            await navigator.clipboard.writeText(result.data.password);
+            toast.success(`${field} copied to clipboard`);
+          } else {
+            toast.error('Failed to decrypt password');
+          }
+        } catch (error) {
+          console.error('Erreur lors du déchiffrement pour copie:', error);
+          toast.error('Failed to copy password');
+        } finally {
+          setLoadingPassword(false);
+        }
+      } else {
+        // Pour les autres champs ou si le mot de passe est déjà déchiffré
+        const textToCopy = field === 'Password' ? decryptedPassword || text : text;
+        if (textToCopy) {
+          await navigator.clipboard.writeText(textToCopy);
+          toast.success(`${field} copied to clipboard`);
+        } else {
+          toast.error('No content to copy');
+        }
+      }
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
-      toast.error('Impossible de copier');
+      toast.error('Failed to copy');
     }
   };
 
-  // Fonction pour évaluer la force du mot de passe
-  const getPasswordStrength = (password) => {
-    if (!password) return { level: 0, text: 'Faible', color: 'red' };
-    
-    let score = 0;
-    if (password.length >= 8) score++;
-    if (password.length >= 12) score++;
-    if (/[a-z]/.test(password)) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score++;
-
-    if (score <= 2) return { level: 1, text: 'Faible', color: 'red' };
-    if (score <= 4) return { level: 2, text: 'Moyen', color: 'yellow' };
-    return { level: 3, text: 'Fort', color: 'green' };
+  // Fonction pour évaluer la force du mot de passe basée sur le score du backend
+  const getPasswordStrengthFromScore = (score) => {
+    if (!score || score <= 2) return { level: 1, text: 'Weak', color: 'red' };
+    if (score <= 3) return { level: 2, text: 'Medium', color: 'yellow' };
+    if (score <= 4) return { level: 3, text: 'Strong', color: 'green' };
+    return { level: 4, text: 'Very Strong', color: 'green' };
   };
 
   // Fonction pour obtenir l'icône de la catégorie
@@ -57,17 +123,17 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
     return icons[category] || icons.default;
   };
 
-  // Formater la date
+  // Formater la date en anglais
   const formatDate = (dateString) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
+    return date.toLocaleDateString('en-US', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
     });
   };
 
-  const strength = getPasswordStrength(password.password);
+  const strength = getPasswordStrengthFromScore(password.password_strength);
 
   if (viewMode === 'list') {
     return (
@@ -115,25 +181,25 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
           {/* Actions */}
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => copyToClipboard(password.username, 'Nom d\'utilisateur')}
+              onClick={() => copyToClipboard(password.username, 'Username')}
               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              title="Copier le nom d'utilisateur"
+              title="Copy the username"
             >
               <UserIcon className="h-4 w-4" />
             </button>
             
             <button
-              onClick={() => copyToClipboard(password.password, 'Mot de passe')}
+              onClick={() => copyToClipboard(password.password, 'Password')}
               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              title="Copier le mot de passe"
+              title="Copy password"
             >
               <DocumentDuplicateIcon className="h-4 w-4" />
             </button>
             
             <button
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={togglePasswordVisibility}
               className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700"
-              title={showPassword ? 'Masquer' : 'Afficher'}
+              title={showPassword ? 'Hide' : 'Show'}
             >
               {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
             </button>
@@ -141,7 +207,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
             <button
               onClick={() => onEdit(password)}
               className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900"
-              title="Modifier"
+              title="Edit"
             >
               <PencilIcon className="h-4 w-4" />
             </button>
@@ -149,7 +215,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
             <button
               onClick={() => onDelete(password.id)}
               className="p-2 text-red-400 hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900"
-              title="Supprimer"
+              title="Delete"
             >
               <TrashIcon className="h-4 w-4" />
             </button>
@@ -161,9 +227,15 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
           <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-2">
               <KeyIcon className="h-4 w-4 text-gray-400" />
-              <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                {password.password}
-              </span>
+              {loadingPassword ? (
+                <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                  Loading...
+                </span>
+              ) : (
+                <span className="font-mono text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
+                  {decryptedPassword || '••••••••'}
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -230,7 +302,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
             <span className="truncate max-w-32">{password.username}</span>
           </div>
           <button
-            onClick={() => copyToClipboard(password.username, 'Nom d\'utilisateur')}
+            onClick={() => copyToClipboard(password.username, 'Username')}
             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
             title="Copier"
           >
@@ -258,21 +330,35 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
           <div className="flex items-center space-x-2">
             <KeyIcon className="h-4 w-4 text-gray-400" />
             <span className="font-mono text-sm">
-              {showPassword ? password.password : '••••••••'}
+              {loadingPassword ? (
+                'Loading...'
+              ) : showPassword ? (
+                decryptedPassword || '••••••••'
+              ) : (
+                '••••••••'
+              )}
             </span>
           </div>
           <div className="flex space-x-1">
             <button
-              onClick={() => setShowPassword(!showPassword)}
-              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
-              title={showPassword ? 'Masquer' : 'Afficher'}
+              onClick={togglePasswordVisibility}
+              disabled={loadingPassword}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded disabled:opacity-50"
+              title={showPassword ? 'Hide' : 'Show'}
             >
-              {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+              {loadingPassword ? (
+                <div className="h-4 w-4 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+              ) : showPassword ? (
+                <EyeSlashIcon className="h-4 w-4" />
+              ) : (
+                <EyeIcon className="h-4 w-4" />
+              )}
             </button>
             <button
-              onClick={() => copyToClipboard(password.password, 'Mot de passe')}
-              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
-              title="Copier"
+              onClick={() => copyToClipboard(password.password, 'Password')}
+              disabled={loadingPassword}
+              className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded disabled:opacity-50"
+              title="Copy"
             >
               <DocumentDuplicateIcon className="h-4 w-4" />
             </button>
@@ -294,10 +380,10 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
         <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
           <div className="flex items-center space-x-1">
             <CalendarIcon className="h-3 w-3" />
-            <span>Créé le {formatDate(password.created_at)}</span>
+            <span>Created {formatDate(password.created_at)}</span>
           </div>
           {password.updated_at !== password.created_at && (
-            <span>Modifié le {formatDate(password.updated_at)}</span>
+            <span>Updated {formatDate(password.updated_at)}</span>
           )}
         </div>
       </div>
