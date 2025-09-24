@@ -26,6 +26,7 @@ const Dashboard = () => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [passwords, setPasswords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [recentActivity, setRecentActivity] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -110,6 +111,18 @@ const Dashboard = () => {
 
   const handleNavigation = (path) => {
     navigate(path);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      // Naviguer vers le vault avec le terme de recherche
+      navigate('/vault', { state: { searchTerm: searchTerm.trim() } });
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
   };
 
   // Configuration des cartes de statistiques avec données réelles
@@ -225,14 +238,16 @@ const Dashboard = () => {
                 </button>
                 
                 <div className="flex items-center space-x-2">
-                  <div className="relative">
+                  <form onSubmit={handleSearch} className="relative">
                     <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
                       placeholder="Search passwords..."
                       className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
-                  </div>
+                  </form>
                 </div>
               </div>
             </div>
