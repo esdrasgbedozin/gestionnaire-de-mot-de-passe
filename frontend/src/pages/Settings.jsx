@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import {
   UserIcon,
   CogIcon,
   ShieldCheckIcon,
-  BellIcon,
   KeyIcon,
   TrashIcon,
   ArrowLeftIcon,
@@ -19,11 +17,11 @@ import {
 import { toast } from 'react-hot-toast';
 import passwordService from '../services/passwordService';
 import userService from '../services/userService';
+import authService from '../services/authService';
 import ThemeToggle from '../components/ThemeToggle';
 
 const Settings = () => {
-  const { user, logout, updateUser } = useAuth();
-  const { isDark } = useTheme();
+  const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
@@ -530,6 +528,27 @@ const Settings = () => {
                         <KeyIcon className="h-4 w-4 mr-2" />
                       )}
                       Export my data
+                    </button>
+                  </div>
+
+                  {/* Development Tools */}
+                  <div className="border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      🔧 Development Tools
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      Clear browser cache and localStorage for testing. This will log you out and redirect to login.
+                    </p>
+                    <button
+                      onClick={() => {
+                        if (window.confirm('⚠️ This will clear all cached data and log you out. Are you sure?')) {
+                          authService.clearAllData();
+                        }
+                      }}
+                      className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 flex items-center"
+                    >
+                      <TrashIcon className="h-4 w-4 mr-2" />
+                      Clear Cache & Logout
                     </button>
                   </div>
                 </div>
