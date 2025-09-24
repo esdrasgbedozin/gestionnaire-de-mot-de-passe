@@ -65,10 +65,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password, confirmPassword) => {
+  const register = async (email, password, confirmPassword, username = null) => {
     setLoading(true);
     try {
-      const result = await authService.register(email, password, confirmPassword);
+      const result = await authService.register(email, password, confirmPassword, username);
       
       if (result.success) {
         setUser(result.data.user);
@@ -112,6 +112,11 @@ export const AuthProvider = ({ children }) => {
     return null;
   };
 
+  const updateUser = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
   const value = {
     isAuthenticated,
     user,
@@ -120,6 +125,7 @@ export const AuthProvider = ({ children }) => {
     register,
     logout,
     refreshUser,
+    updateUser,
   };
 
   return (
