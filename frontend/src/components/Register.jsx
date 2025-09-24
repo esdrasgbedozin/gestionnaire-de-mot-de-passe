@@ -139,7 +139,8 @@ const Register = () => {
       const result = await register(
         formData.email, 
         formData.password, 
-        formData.confirmPassword
+        formData.confirmPassword,
+        formData.username // Ajouter le username
       );
 
       if (result.success) {
