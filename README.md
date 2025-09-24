@@ -11,7 +11,7 @@ Application sécurisée de gestion de mots de passe avec chiffrement AES-256 et 
 ### Installation et lancement
 ```bash
 # 1. Cloner le projet
-git clone <votre-repo>
+git clone https://github.com/esdrasgbedozin/gestionnaire-de-mot-de-passe
 cd gestionnaire-de-mot-de-passe
 
 # 2. Configurer l'environnement
