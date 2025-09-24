@@ -15,6 +15,7 @@ import {
 import toast from 'react-hot-toast';
 import passwordService from '../services/passwordService';
 import { calculatePasswordStats, formatRelativeDate, getRecentPasswords } from '../utils/passwordStats';
+import '../utils/diagnostic'; // Import pour exposer DiagnosticTool globalement
 import ThemeToggle from './ThemeToggle';
 
 const Dashboard = () => {
@@ -38,6 +39,11 @@ const Dashboard = () => {
 
   useEffect(() => {
     setIsAnimating(true);
+    
+    // Diagnostic automatique en mode développement
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔧 Mode développement détecté - Diagnostic disponible via: window.DiagnosticTool.runFullDiagnostic()');
+    }
     
     // Charger les mots de passe
     loadPasswords();
