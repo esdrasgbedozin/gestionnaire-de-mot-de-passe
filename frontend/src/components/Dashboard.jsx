@@ -46,26 +46,29 @@ const Dashboard = () => {
   const loadPasswords = async () => {
     try {
       setLoading(true);
+      console.log('📱 Dashboard: Starting to load passwords...');
       const response = await passwordService.getPasswords();
+      console.log('📱 Dashboard: Response from passwordService:', response);
       
       if (response.success && response.data) {
         const passwordList = response.data.passwords || [];
-        console.log('Raw passwords from backend:', passwordList.slice(0, 2)); // Log first 2 passwords
+        console.log('📱 Dashboard: Raw passwords from backend:', passwordList.slice(0, 2)); // Log first 2 passwords
         
         setPasswords(passwordList);
         
         // Calculer les statistiques
         const stats = calculatePasswordStats(passwordList);
         setStats(stats);
+        console.log('📱 Dashboard: Calculated stats:', stats);
         
         // Récentes activités
         const recent = getRecentPasswords(passwordList, 7); // Last 7 days
-        console.log('Recent passwords for activities:', recent.slice(0, 2)); // Log recent
+        console.log('📱 Dashboard: Recent passwords for activities:', recent.slice(0, 2)); // Log recent
         
         const recentActivities = recent.map(pwd => {
           const wasUpdated = pwd.updated_at && pwd.updated_at !== pwd.created_at;
           const dateToUse = wasUpdated ? pwd.updated_at : pwd.created_at;
-          console.log('Processing password date:', { 
+          console.log('📱 Dashboard: Processing password date:', { 
             site: pwd.site_name, 
             created_at: pwd.created_at, 
             updated_at: pwd.updated_at,
@@ -83,14 +86,16 @@ const Dashboard = () => {
         }).slice(0, 5); // Afficher seulement les 5 plus récents
 
         setRecentActivity(recentActivities);
+        console.log('📱 Dashboard: Set recent activities:', recentActivities);
       } else {
-        console.error('Error loading passwords:', response.error);
+        console.error('📱 Dashboard: Error loading passwords:', response.error);
         toast.error(response.error || 'Error loading passwords');
       }
     } catch (error) {
-      console.error('Error loading passwords:', error);
+      console.error('📱 Dashboard: Exception loading passwords:', error);
       toast.error('Error loading passwords');
     } finally {
+      console.log('📱 Dashboard: Finished loading passwords, setting loading to false');
       setLoading(false);
     }
   };

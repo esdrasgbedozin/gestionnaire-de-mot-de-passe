@@ -57,12 +57,19 @@ const passwordService = {
         params.append('search', search);
       }
 
+      console.log('🔐 PasswordService: Making request to /passwords/ with params:', params.toString());
+      console.log('🔐 PasswordService: Token in localStorage:', localStorage.getItem('access_token') ? 'Present' : 'Missing');
+      
       const response = await api.get(`/passwords/?${params.toString()}`);
+      console.log('🔐 PasswordService: Raw API response:', response.data);
+      
       return {
         success: true,
         data: response.data,
       };
     } catch (error) {
+      console.error('🔐 PasswordService: Error fetching passwords:', error);
+      console.error('🔐 PasswordService: Error response:', error.response?.data);
       return {
         success: false,
         error: error.response?.data?.error || 'Failed to fetch passwords',
