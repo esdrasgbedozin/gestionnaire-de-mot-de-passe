@@ -190,14 +190,40 @@ export const formatRelativeDate = (dateString) => {
 
   const date = new Date(dateString);
   const now = new Date();
-  const diffInMs = now - date;
-  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  
+  // Vérifier si la date est valide
+  if (isNaN(date.getTime())) {
+    console.warn('Invalid date provided to formatRelativeDate:', dateString);
+    return 'Invalid date';
+  }
+  
+  // Reset les heures pour comparer seulement les dates (à minuit local)
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  const diffInMs = today.getTime() - compareDate.getTime();
+  const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
+
+  // Debug log temporaire
+  console.log('Date comparison:', {
+    original: dateString,
+    parsed: date,
+    today: today,
+    compareDate: compareDate,
+    diffInMs: diffInMs,
+    diffInDays: diffInDays
+  });
 
   if (diffInDays === 0) return 'Today';
   if (diffInDays === 1) return 'Yesterday';
-  if (diffInDays < 7) return `${diffInDays} days ago`;
-  if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
-  if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} months ago`;
+  if (diffInDays === -1) return 'Tomorrow'; // Au cas où
+  if (diffInDays > 1 && diffInDays < 7) return `${diffInDays} days ago`;
+  if (diffInDays >= 7 && diffInDays < 30) return `${Math.floor(diffInDays / 7)} week${Math.floor(diffInDays / 7) > 1 ? 's' : ''} ago`;
+  if (diffInDays >= 30 && diffInDays < 365) return `${Math.floor(diffInDays / 30)} month${Math.floor(diffInDays / 30) > 1 ? 's' : ''} ago`;
+  if (diffInDays >= 365) return `${Math.floor(diffInDays / 365)} year${Math.floor(diffInDays / 365) > 1 ? 's' : ''} ago`;
   
-  return `${Math.floor(diffInDays / 365)} years ago`;
+  // Pour les dates futures
+  if (diffInDays < 0) return 'Future date';
+  
+  return `${diffInDays} days ago`;
 };
