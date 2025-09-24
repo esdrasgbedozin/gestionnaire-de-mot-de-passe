@@ -34,9 +34,13 @@ L'application sera accessible sur :
 - 🎲 **Générateur de mots de passe** robustes
 - 📊 **Évaluation de la force** des mots de passe
 - 🗂️ **Organisation** par catégories et favoris
-- � **Recherche et filtres** avancés
-- � **Audit complet** des actions
-- � **API REST** documentée
+- 🔍 **Recherche et filtres** avancés
+- 🌙 **Thème sombre/clair** avec persistance
+- 👤 **Profils utilisateurs** avec noms d'utilisateur
+- 📝 **Audit complet** des actions
+- 📈 **Dashboard** avec statistiques en temps réel
+- 🌐 **API REST** documentée
+- 📱 **Interface responsive** et moderne
 
 ## 🛠️ Développement
 
