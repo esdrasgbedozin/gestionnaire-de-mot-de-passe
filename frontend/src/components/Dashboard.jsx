@@ -46,26 +46,39 @@ const Dashboard = () => {
   const loadPasswords = async () => {
     try {
       setLoading(true);
-      const result = await passwordService.getPasswords();
+      const response = await passwordService.getPasswords();
       
-      if (result.success) {
-        const passwordList = result.data.passwords || [];
+      if (response.data) {
+        const passwordList = response.data.passwords || [];
+        console.log('Raw passwords from backend:', passwordList.slice(0, 2)); // Log first 2 passwords
+        
         setPasswords(passwordList);
         
-        // Calculer les statistiques réelles
-        const calculatedStats = calculatePasswordStats(passwordList);
-        setStats(calculatedStats);
-
-        // Calculer l'activité récente
+        // Calculer les statistiques
+        const stats = calculatePasswordStats(passwordList);
+        setStats(stats);
+        
+        // Récentes activités
         const recent = getRecentPasswords(passwordList, 7); // Last 7 days
+        console.log('Recent passwords for activities:', recent.slice(0, 2)); // Log recent
+        
         const recentActivities = recent.map(pwd => {
           const wasUpdated = pwd.updated_at && pwd.updated_at !== pwd.created_at;
+          const dateToUse = wasUpdated ? pwd.updated_at : pwd.created_at;
+          console.log('Processing password date:', { 
+            site: pwd.site_name, 
+            created_at: pwd.created_at, 
+            updated_at: pwd.updated_at,
+            dateToUse: dateToUse,
+            wasUpdated: wasUpdated
+          });
+          
           return {
             id: pwd.id,
             type: wasUpdated ? 'updated' : 'created',
             siteName: pwd.site_name,
-            date: wasUpdated ? pwd.updated_at : pwd.created_at,
-            relativeDate: formatRelativeDate(wasUpdated ? pwd.updated_at : pwd.created_at)
+            date: dateToUse,
+            relativeDate: formatRelativeDate(dateToUse)
           };
         }).slice(0, 5); // Afficher seulement les 5 plus récents
 
