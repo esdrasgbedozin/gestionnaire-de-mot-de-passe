@@ -125,8 +125,8 @@ const Dashboard = () => {
       name: 'Total Passwords', 
       value: loading ? '...' : stats.total.toString(), 
       icon: KeyIcon, 
-      color: 'text-blue-600', 
-      bg: 'bg-blue-100' 
+      color: 'text-pink-600', 
+      bg: 'bg-pink-100' 
     },
     { 
       name: 'Weak Passwords', 
@@ -146,8 +146,8 @@ const Dashboard = () => {
       name: 'Recently Added', 
       value: loading ? '...' : stats.recentlyAdded.toString(), 
       icon: UserIcon, 
-      color: 'text-purple-600', 
-      bg: 'bg-purple-100' 
+      color: 'text-rose-600', 
+      bg: 'bg-rose-100' 
     },
   ];
 
@@ -155,7 +155,7 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       {/* Sidebar */}
       <div className="fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 shadow-lg transform transition-transform duration-300">
-        <div className="flex items-center justify-center h-16 bg-gradient-to-r from-indigo-500 to-purple-600">
+        <div className="flex items-center justify-center h-16 bg-gradient-to-r from-pink-500 to-rose-600">
           <ShieldCheckIcon className="h-8 w-8 text-white" />
           <span className="ml-2 text-xl font-bold text-white">PassGuard</span>
         </div>
@@ -172,12 +172,12 @@ const Dashboard = () => {
                 onClick={() => handleNavigation(item.path)}
                 className={`w-full group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
                   location.pathname === item.path
-                    ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
+                    ? 'bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300'
                     : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
                 <item.icon className={`mr-3 h-5 w-5 ${
-                  location.pathname === item.path ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'
+                  location.pathname === item.path ? 'text-pink-600' : 'text-gray-400 group-hover:text-gray-600'
                 }`} />
                 {item.name}
               </button>
@@ -216,7 +216,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-                <p className="text-gray-600 dark:text-gray-400">Welcome back, {user?.email?.split('@')[0]}!</p>
+                <p className="text-gray-600 dark:text-gray-400">Secure your digital life, {user?.username || user?.email?.split('@')[0]} ! 🔐</p>
               </div>
               
               <div className="flex items-center space-x-4">
@@ -272,9 +272,9 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <button 
                 onClick={() => handleNavigation('/vault')}
-                className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200 group"
+                className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-pink-500 hover:bg-pink-50 dark:hover:bg-pink-900/20 transition-all duration-200 group"
               >
-                <PlusIcon className="h-8 w-8 text-gray-400 group-hover:text-indigo-500" />
+                <PlusIcon className="h-8 w-8 text-gray-400 group-hover:text-pink-500" />
                 <div className="ml-4 text-left">
                   <p className="font-medium text-gray-900 dark:text-white">Add Password</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Store a new password securely</p>
@@ -294,9 +294,9 @@ const Dashboard = () => {
               
               <button 
                 onClick={() => handleNavigation('/settings')}
-                className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 transition-all duration-200 group"
+                className="flex items-center p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl hover:border-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all duration-200 group"
               >
-                <CogIcon className="h-8 w-8 text-gray-400 group-hover:text-purple-500" />
+                <CogIcon className="h-8 w-8 text-gray-400 group-hover:text-rose-500" />
                 <div className="ml-4 text-left">
                   <p className="font-medium text-gray-900 dark:text-white">Settings</p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">Customize your experience</p>
