@@ -24,7 +24,8 @@ Créer un nouveau compte utilisateur.
 ```json
 {
   "email": "user@example.com",
-  "password": "MotDePasseSecurise123!"
+  "password": "MotDePasseSecurise123!",
+  "username": "mon_username" // Optionnel
 }
 ```
 
@@ -35,6 +36,7 @@ Créer un nouveau compte utilisateur.
   "user": {
     "id": "db3abef3-ab5d-4418-9652-83f743ec5984",
     "email": "user@example.com",
+    "username": "mon_username",
     "created_at": "2023-09-23T14:30:00Z",
     "is_active": true
   }
@@ -66,7 +68,52 @@ Se connecter et obtenir un token JWT.
 
 ---
 
-### 🗝️ Gestion des Mots de Passe
+### � Gestion des Utilisateurs
+
+#### `GET /users/profile`
+Récupérer les informations du profil utilisateur connecté.
+
+**Response (200):**
+```json
+{
+  "user": {
+    "id": "db3abef3-ab5d-4418-9652-83f743ec5984",
+    "email": "user@example.com",
+    "username": "mon_username",
+    "created_at": "2023-09-23T14:30:00Z",
+    "is_active": true
+  }
+}
+```
+
+#### `PUT /users/profile`
+Mettre à jour les informations du profil utilisateur.
+
+**Request:**
+```json
+{
+  "username": "nouveau_username",
+  "current_password": "ancienMotDePasse123!",
+  "new_password": "nouveauMotDePasse123!" // Optionnel
+}
+```
+
+**Response (200):**
+```json
+{
+  "message": "Profile updated successfully",
+  "user": {
+    "id": "db3abef3-ab5d-4418-9652-83f743ec5984",
+    "email": "user@example.com",
+    "username": "nouveau_username",
+    "updated_at": "2023-09-23T15:30:00Z"
+  }
+}
+```
+
+---
+
+### �🗝️ Gestion des Mots de Passe
 
 #### `GET /passwords`
 Récupérer la liste des mots de passe (paginée).
