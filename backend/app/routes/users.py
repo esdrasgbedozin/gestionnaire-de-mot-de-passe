@@ -22,6 +22,7 @@ def get_profile(current_user):
             'user': {
                 'id': current_user.id,
                 'email': current_user.email,
+                'username': current_user.username,  # Ajouter le username
                 'created_at': current_user.created_at.isoformat(),
                 'updated_at': current_user.updated_at.isoformat() if current_user.updated_at else None,
                 'failed_login_attempts': current_user.failed_login_attempts,
