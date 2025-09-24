@@ -10,19 +10,17 @@ import {
   ShieldCheckIcon,
   PlusIcon,
   MagnifyingGlassIcon,
-  BellIcon,
-  SunIcon,
-  MoonIcon
+  BellIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import passwordService from '../services/passwordService';
 import { calculatePasswordStats, formatRelativeDate, getRecentPasswords } from '../utils/passwordStats';
+import ThemeToggle from './ThemeToggle';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [darkMode, setDarkMode] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [passwords, setPasswords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -40,12 +38,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     setIsAnimating(true);
-    // Vérifier le thème sauvegardé
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
     
     // Charger les mots de passe
     loadPasswords();
@@ -86,17 +78,6 @@ const Dashboard = () => {
       toast.error('Error loading passwords');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    if (!darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
     }
   };
 
@@ -226,12 +207,7 @@ const Dashboard = () => {
               </div>
               
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={toggleDarkMode}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-white transition-colors"
-                >
-                  {darkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-                </button>
+                <ThemeToggle />
                 
                 <button className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-white transition-colors">
                   <BellIcon className="h-5 w-5" />
