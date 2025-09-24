@@ -94,7 +94,7 @@ const authService = {
   /**
    * Inscription utilisateur
    */
-  async register(email, password, confirmPassword) {
+  async register(email, password, confirmPassword, username = null) {
     try {
       // Validation côté client
       if (password !== confirmPassword) {
@@ -104,10 +104,17 @@ const authService = {
         };
       }
 
-      const response = await api.post('/auth/register', {
+      const requestData = {
         email: email.trim().toLowerCase(),
         password,
-      });
+      };
+
+      // Ajouter le username s'il est fourni
+      if (username && username.trim()) {
+        requestData.username = username.trim();
+      }
+
+      const response = await api.post('/auth/register', requestData);
 
       const { tokens, user } = response.data;
 

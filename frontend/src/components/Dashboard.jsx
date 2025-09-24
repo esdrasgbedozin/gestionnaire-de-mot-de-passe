@@ -48,7 +48,7 @@ const Dashboard = () => {
       setLoading(true);
       const response = await passwordService.getPasswords();
       
-      if (response.data) {
+      if (response.success && response.data) {
         const passwordList = response.data.passwords || [];
         console.log('Raw passwords from backend:', passwordList.slice(0, 2)); // Log first 2 passwords
         
@@ -84,7 +84,8 @@ const Dashboard = () => {
 
         setRecentActivity(recentActivities);
       } else {
-        toast.error('Error loading passwords');
+        console.error('Error loading passwords:', response.error);
+        toast.error(response.error || 'Error loading passwords');
       }
     } catch (error) {
       console.error('Error loading passwords:', error);
