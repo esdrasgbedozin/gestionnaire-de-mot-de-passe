@@ -156,6 +156,17 @@ const authService = {
   },
 
   /**
+   * Vider complètement le cache et forcer la déconnexion
+   * Utile pour les tests et le développement
+   */
+  clearAllData() {
+    localStorage.clear();
+    sessionStorage.clear();
+    // Recharger la page pour s'assurer que tout est réinitialisé
+    window.location.href = '/login';
+  },
+
+  /**
    * Rafraîchir le token
    */
   async refreshToken() {
