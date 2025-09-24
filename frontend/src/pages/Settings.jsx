@@ -25,7 +25,6 @@ const Settings = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   
     // Profile settings
   const [profileData, setProfileData] = useState({
@@ -54,10 +53,6 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    // Vérifier le thème actuel
-    const savedTheme = localStorage.getItem('theme');
-    setDarkMode(savedTheme === 'dark');
-    
     // Initialiser les données du profil
     if (user) {
       setProfileData(prev => ({
@@ -88,21 +83,6 @@ const Settings = () => {
     } catch (error) {
       console.error('Erreur lors du chargement des statistiques:', error);
     }
-  };
-
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-    
-    toast.success(`Thème ${newDarkMode ? 'sombre' : 'clair'} activé`);
   };
 
   const handleProfileUpdate = async (e) => {
@@ -515,18 +495,7 @@ const Settings = () => {
                         Use dark theme to reduce eye strain
                       </p>
                     </div>
-                    <button
-                      onClick={toggleDarkMode}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        darkMode ? 'bg-indigo-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-                          darkMode ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                    <ThemeToggle />
                   </div>
                 </div>
               </div>
