@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon,
@@ -20,6 +21,7 @@ import PasswordGenerator from '../components/PasswordGenerator';
 
 const Vault = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [passwords, setPasswords] = useState([]);
   const [filteredPasswords, setFilteredPasswords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +31,13 @@ const Vault = () => {
   const [showGenerator, setShowGenerator] = useState(false);
   const [editingPassword, setEditingPassword] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
+
+  // Initialiser le terme de recherche depuis l'état de navigation
+  useEffect(() => {
+    if (location.state?.searchTerm) {
+      setSearchTerm(location.state.searchTerm);
+    }
+  }, [location.state]);
 
   // Fonction pour calculer les compteurs de catégories
   const getCategoryCount = (categoryId) => {
