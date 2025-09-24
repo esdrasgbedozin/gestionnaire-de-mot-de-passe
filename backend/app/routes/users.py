@@ -72,15 +72,21 @@ def update_profile(current_user):
                 }), 409
             current_user.email = data['email']
             
+        # Mise à jour du username si fourni
+        if 'username' in data:
+            username = data['username'].strip() if data['username'] else None
+            if username and len(username) > 100:
+                return jsonify({
+                    'error': 'Le nom d\'utilisateur est trop long (max 100 caractères)',
+                    'status': 'error'
+                }), 400
+            current_user.username = username
+            
         db.session.commit()
         
         return jsonify({
             'message': 'Profil mis à jour avec succès',
-            'user': {
-                'id': current_user.id,
-                'email': current_user.email,
-                'updated_at': current_user.updated_at.isoformat()
-            },
+            'user': current_user.to_dict(),
             'status': 'success'
         }), 200
         

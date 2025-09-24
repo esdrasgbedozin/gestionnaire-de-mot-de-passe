@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useLocation } from 'react-router-dom';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon,
@@ -20,6 +21,7 @@ import PasswordGenerator from '../components/PasswordGenerator';
 
 const Vault = () => {
   const { user } = useAuth();
+  const location = useLocation();
   const [passwords, setPasswords] = useState([]);
   const [filteredPasswords, setFilteredPasswords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +32,13 @@ const Vault = () => {
   const [editingPassword, setEditingPassword] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
 
+  // Initialiser le terme de recherche depuis l'état de navigation
+  useEffect(() => {
+    if (location.state?.searchTerm) {
+      setSearchTerm(location.state.searchTerm);
+    }
+  }, [location.state]);
+
   // Fonction pour calculer les compteurs de catégories
   const getCategoryCount = (categoryId) => {
     if (categoryId === 'all') return passwords.length;
@@ -38,15 +47,15 @@ const Vault = () => {
     ).length;
   };
 
-  // Catégories disponibles avec compteurs dynamiques
+  // Catégories disponibles avec compteurs dynamiques (synchronisées avec PasswordForm)
   const categories = [
     { id: 'all', name: 'All', icon: KeyIcon, count: getCategoryCount('all') },
-    { id: 'Social', name: 'Social Media', icon: ShieldCheckIcon, count: getCategoryCount('Social') },
-    { id: 'Email', name: 'Email', icon: ShieldCheckIcon, count: getCategoryCount('Email') },
-    { id: 'Finance', name: 'Finance', icon: ShieldCheckIcon, count: getCategoryCount('Finance') },
-    { id: 'Work', name: 'Work', icon: ShieldCheckIcon, count: getCategoryCount('Work') },
-    { id: 'Personal', name: 'Personal', icon: ShieldCheckIcon, count: getCategoryCount('Personal') },
-    { id: 'Shopping', name: 'Shopping', icon: ShieldCheckIcon, count: getCategoryCount('Shopping') },
+    { id: 'personal', name: 'Personal', icon: ShieldCheckIcon, count: getCategoryCount('personal') },
+    { id: 'work', name: 'Work', icon: ShieldCheckIcon, count: getCategoryCount('work') },
+    { id: 'social', name: 'Social Media', icon: ShieldCheckIcon, count: getCategoryCount('social') },
+    { id: 'banking', name: 'Banking', icon: ShieldCheckIcon, count: getCategoryCount('banking') },
+    { id: 'shopping', name: 'Shopping', icon: ShieldCheckIcon, count: getCategoryCount('shopping') },
+    { id: 'other', name: 'Other', icon: ShieldCheckIcon, count: getCategoryCount('other') },
   ];
 
   // Charger les mots de passe au montage du composant
@@ -70,7 +79,9 @@ const Vault = () => {
 
       // Filtrer par catégorie
       if (selectedCategory !== 'all') {
-        filtered = filtered.filter(password => password.category === selectedCategory);
+        filtered = filtered.filter(password => 
+          password.category && password.category.toLowerCase() === selectedCategory.toLowerCase()
+        );
       }
 
       setFilteredPasswords(filtered);
