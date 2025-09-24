@@ -10,22 +10,21 @@ import {
   ShieldCheckIcon,
   PlusIcon,
   MagnifyingGlassIcon,
-  BellIcon,
-  SunIcon,
-  MoonIcon
+  BellIcon
 } from '@heroicons/react/24/outline';
 import toast from 'react-hot-toast';
 import passwordService from '../services/passwordService';
 import { calculatePasswordStats, formatRelativeDate, getRecentPasswords } from '../utils/passwordStats';
+import ThemeToggle from './ThemeToggle';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [darkMode, setDarkMode] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [passwords, setPasswords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
   const [recentActivity, setRecentActivity] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -39,12 +38,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     setIsAnimating(true);
-    // Vérifier le thème sauvegardé
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-      setDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
     
     // Charger les mots de passe
     loadPasswords();
@@ -53,26 +46,39 @@ const Dashboard = () => {
   const loadPasswords = async () => {
     try {
       setLoading(true);
-      const result = await passwordService.getPasswords();
+      const response = await passwordService.getPasswords();
       
-      if (result.success) {
-        const passwordList = result.data.passwords || [];
+      if (response.data) {
+        const passwordList = response.data.passwords || [];
+        console.log('Raw passwords from backend:', passwordList.slice(0, 2)); // Log first 2 passwords
+        
         setPasswords(passwordList);
         
-        // Calculer les statistiques réelles
-        const calculatedStats = calculatePasswordStats(passwordList);
-        setStats(calculatedStats);
-
-        // Calculer l'activité récente
+        // Calculer les statistiques
+        const stats = calculatePasswordStats(passwordList);
+        setStats(stats);
+        
+        // Récentes activités
         const recent = getRecentPasswords(passwordList, 7); // Last 7 days
+        console.log('Recent passwords for activities:', recent.slice(0, 2)); // Log recent
+        
         const recentActivities = recent.map(pwd => {
           const wasUpdated = pwd.updated_at && pwd.updated_at !== pwd.created_at;
+          const dateToUse = wasUpdated ? pwd.updated_at : pwd.created_at;
+          console.log('Processing password date:', { 
+            site: pwd.site_name, 
+            created_at: pwd.created_at, 
+            updated_at: pwd.updated_at,
+            dateToUse: dateToUse,
+            wasUpdated: wasUpdated
+          });
+          
           return {
             id: pwd.id,
             type: wasUpdated ? 'updated' : 'created',
             siteName: pwd.site_name,
-            date: wasUpdated ? pwd.updated_at : pwd.created_at,
-            relativeDate: formatRelativeDate(wasUpdated ? pwd.updated_at : pwd.created_at)
+            date: dateToUse,
+            relativeDate: formatRelativeDate(dateToUse)
           };
         }).slice(0, 5); // Afficher seulement les 5 plus récents
 
@@ -88,17 +94,6 @@ const Dashboard = () => {
     }
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    if (!darkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -110,6 +105,18 @@ const Dashboard = () => {
 
   const handleNavigation = (path) => {
     navigate(path);
+  };
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      // Naviguer vers le vault avec le terme de recherche
+      navigate('/vault', { state: { searchTerm: searchTerm.trim() } });
+    }
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
   };
 
   // Configuration des cartes de statistiques avec données réelles
@@ -213,26 +220,23 @@ const Dashboard = () => {
               </div>
               
               <div className="flex items-center space-x-4">
-                <button
-                  onClick={toggleDarkMode}
-                  className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-white transition-colors"
-                >
-                  {darkMode ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-                </button>
+                <ThemeToggle />
                 
                 <button className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-white transition-colors">
                   <BellIcon className="h-5 w-5" />
                 </button>
                 
                 <div className="flex items-center space-x-2">
-                  <div className="relative">
+                  <form onSubmit={handleSearch} className="relative">
                     <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
                       placeholder="Search passwords..."
                       className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent dark:bg-gray-700 dark:text-white"
                     />
-                  </div>
+                  </form>
                 </div>
               </div>
             </div>
