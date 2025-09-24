@@ -38,15 +38,15 @@ const Vault = () => {
     ).length;
   };
 
-  // Catégories disponibles avec compteurs dynamiques
+  // Catégories disponibles avec compteurs dynamiques (synchronisées avec PasswordForm)
   const categories = [
     { id: 'all', name: 'All', icon: KeyIcon, count: getCategoryCount('all') },
-    { id: 'Social', name: 'Social Media', icon: ShieldCheckIcon, count: getCategoryCount('Social') },
-    { id: 'Email', name: 'Email', icon: ShieldCheckIcon, count: getCategoryCount('Email') },
-    { id: 'Finance', name: 'Finance', icon: ShieldCheckIcon, count: getCategoryCount('Finance') },
-    { id: 'Work', name: 'Work', icon: ShieldCheckIcon, count: getCategoryCount('Work') },
-    { id: 'Personal', name: 'Personal', icon: ShieldCheckIcon, count: getCategoryCount('Personal') },
-    { id: 'Shopping', name: 'Shopping', icon: ShieldCheckIcon, count: getCategoryCount('Shopping') },
+    { id: 'personal', name: 'Personal', icon: ShieldCheckIcon, count: getCategoryCount('personal') },
+    { id: 'work', name: 'Work', icon: ShieldCheckIcon, count: getCategoryCount('work') },
+    { id: 'social', name: 'Social Media', icon: ShieldCheckIcon, count: getCategoryCount('social') },
+    { id: 'banking', name: 'Banking', icon: ShieldCheckIcon, count: getCategoryCount('banking') },
+    { id: 'shopping', name: 'Shopping', icon: ShieldCheckIcon, count: getCategoryCount('shopping') },
+    { id: 'other', name: 'Other', icon: ShieldCheckIcon, count: getCategoryCount('other') },
   ];
 
   // Charger les mots de passe au montage du composant
@@ -70,7 +70,9 @@ const Vault = () => {
 
       // Filtrer par catégorie
       if (selectedCategory !== 'all') {
-        filtered = filtered.filter(password => password.category === selectedCategory);
+        filtered = filtered.filter(password => 
+          password.category && password.category.toLowerCase() === selectedCategory.toLowerCase()
+        );
       }
 
       setFilteredPasswords(filtered);

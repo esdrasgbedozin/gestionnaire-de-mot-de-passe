@@ -92,6 +92,7 @@ def register():
         
         email = data.get('email', '').strip().lower()
         password = data.get('password', '')
+        username = data.get('username', '').strip() if data.get('username') else None
         
         # Validation des champs requis
         if not email or not password:
@@ -100,6 +101,10 @@ def register():
         # Validation du format email
         if not validate_email(email):
             return jsonify({'error': 'Invalid email format'}), 400
+        
+        # Validation du username s'il est fourni
+        if username and len(username) > 100:
+            return jsonify({'error': 'Username too long (max 100 characters)'}), 400
         
         # Validation de la force du mot de passe
         is_valid, message = validate_password(password)
@@ -121,7 +126,7 @@ def register():
             return jsonify({'error': 'Email already registered'}), 409
         
         # Créer le nouvel utilisateur
-        new_user = User(email=email, password=password)
+        new_user = User(email=email, password=password, username=username)
         db.session.add(new_user)
         db.session.commit()
         
