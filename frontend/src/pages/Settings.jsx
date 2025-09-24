@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import {
   UserIcon,
@@ -18,17 +19,19 @@ import {
 import { toast } from 'react-hot-toast';
 import passwordService from '../services/passwordService';
 import userService from '../services/userService';
+import ThemeToggle from '../components/ThemeToggle';
 
 const Settings = () => {
   const { user, logout, updateUser } = useAuth();
+  const { isDark } = useTheme();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('profile');
   const [loading, setLoading] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   
     // Profile settings
   const [profileData, setProfileData] = useState({
     email: '',
+    username: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -52,15 +55,12 @@ const Settings = () => {
   });
 
   useEffect(() => {
-    // Vérifier le thème actuel
-    const savedTheme = localStorage.getItem('theme');
-    setDarkMode(savedTheme === 'dark');
-    
     // Initialiser les données du profil
     if (user) {
       setProfileData(prev => ({
         ...prev,
-        email: user.email || ''
+        email: user.email || '',
+        username: user.username || ''
       }));
     }
     
@@ -87,21 +87,6 @@ const Settings = () => {
     }
   };
 
-  const toggleDarkMode = () => {
-    const newDarkMode = !darkMode;
-    setDarkMode(newDarkMode);
-    
-    if (newDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-    
-    toast.success(`Thème ${newDarkMode ? 'sombre' : 'clair'} activé`);
-  };
-
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     
@@ -112,11 +97,10 @@ const Settings = () => {
 
     setLoading(true);
     try {
-      const updateData = {
-        email: profileData.email
-      };
-
-      if (profileData.newPassword) {
+      let updateData = {
+        email: profileData.email,
+        username: profileData.username
+      };      if (profileData.newPassword) {
         updateData.currentPassword = profileData.currentPassword;
         updateData.newPassword = profileData.newPassword;
       }
@@ -293,6 +277,19 @@ const Settings = () => {
                       />
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Username (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={profileData.username}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, username: e.target.value }))}
+                        placeholder="Enter your username"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+
                     <div className="border-t pt-4">
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                         Change Password (optional)
@@ -408,6 +405,14 @@ const Settings = () => {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Username
+                      </label>
+                      <p className="text-gray-900 dark:text-white">
+                        {user?.username || <span className="text-gray-500 italic">No username set</span>}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                         Member since
                       </label>
                       <p className="text-gray-900 dark:text-white">
@@ -492,18 +497,7 @@ const Settings = () => {
                         Use dark theme to reduce eye strain
                       </p>
                     </div>
-                    <button
-                      onClick={toggleDarkMode}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        darkMode ? 'bg-indigo-600' : 'bg-gray-200'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
-                          darkMode ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                      />
-                    </button>
+                    <ThemeToggle />
                   </div>
                 </div>
               </div>

@@ -14,6 +14,7 @@ class User(db.Model):
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
+    username = db.Column(db.String(100), nullable=True, index=True)  # Nom d'utilisateur optionnel
     password_hash = db.Column(db.String(128), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -25,8 +26,9 @@ class User(db.Model):
     # Relation avec les mots de passe
     passwords = db.relationship('Password', backref='user', lazy=True, cascade='all, delete-orphan')
     
-    def __init__(self, email, password):
+    def __init__(self, email, password, username=None):
         self.email = email
+        self.username = username
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
     
     def check_password(self, password):
@@ -38,6 +40,7 @@ class User(db.Model):
         return {
             'id': str(self.id),
             'email': self.email,
+            'username': self.username,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'is_active': self.is_active,
