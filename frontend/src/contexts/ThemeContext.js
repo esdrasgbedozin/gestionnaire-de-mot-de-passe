@@ -23,14 +23,24 @@ export const ThemeProvider = ({ children }) => {
   // Basculer entre les thèmes
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
+    console.log('Switching theme from', theme, 'to', newTheme);
     setTheme(newTheme);
   };
 
   // Sauvegarder le thème dans localStorage et appliquer la classe CSS
   useEffect(() => {
+    console.log('Theme changed to:', theme);
     localStorage.setItem('theme', theme);
-    // Appliquer la classe theme sur le body
-    document.body.className = theme === 'dark' ? 'dark-theme' : 'light-theme';
+    // Appliquer la classe 'dark' sur le documentElement pour TailwindCSS
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.body.className = 'dark-theme';
+      console.log('Applied dark theme classes');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.className = 'light-theme';
+      console.log('Applied light theme classes');
+    }
   }, [theme]);
 
   const value = {
