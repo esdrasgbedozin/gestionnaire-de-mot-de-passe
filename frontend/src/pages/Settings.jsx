@@ -29,6 +29,7 @@ const Settings = () => {
     // Profile settings
   const [profileData, setProfileData] = useState({
     email: '',
+    username: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -60,7 +61,8 @@ const Settings = () => {
     if (user) {
       setProfileData(prev => ({
         ...prev,
-        email: user.email || ''
+        email: user.email || '',
+        username: user.username || ''
       }));
     }
     
@@ -112,11 +114,10 @@ const Settings = () => {
 
     setLoading(true);
     try {
-      const updateData = {
-        email: profileData.email
-      };
-
-      if (profileData.newPassword) {
+      let updateData = {
+        email: profileData.email,
+        username: profileData.username
+      };      if (profileData.newPassword) {
         updateData.currentPassword = profileData.currentPassword;
         updateData.newPassword = profileData.newPassword;
       }
@@ -293,6 +294,19 @@ const Settings = () => {
                       />
                     </div>
 
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Username (optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={profileData.username}
+                        onChange={(e) => setProfileData(prev => ({ ...prev, username: e.target.value }))}
+                        placeholder="Enter your username"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      />
+                    </div>
+
                     <div className="border-t pt-4">
                       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
                         Change Password (optional)
@@ -405,6 +419,14 @@ const Settings = () => {
                         Email
                       </label>
                       <p className="text-gray-900 dark:text-white">{user?.email}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Username
+                      </label>
+                      <p className="text-gray-900 dark:text-white">
+                        {user?.username || <span className="text-gray-500 italic">No username set</span>}
+                      </p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">

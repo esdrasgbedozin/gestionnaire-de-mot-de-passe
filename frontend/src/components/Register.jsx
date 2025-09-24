@@ -16,6 +16,7 @@ const Register = () => {
   const { register, loading, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
+    username: '',
     password: '',
     confirmPassword: '',
     acceptTerms: false,
@@ -229,6 +230,28 @@ const Register = () => {
                 />
                 {errors.email && (
                   <p className="mt-2 text-sm text-red-600 animate-fadeIn">{errors.email}</p>
+                )}
+              </div>
+
+              {/* Username */}
+              <div>
+                <label htmlFor="username" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                  Username <span className="text-gray-500 text-xs">(optional)</span>
+                </label>
+                <input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  className={`appearance-none relative block w-full px-4 py-3 border ${
+                    errors.username ? 'border-red-300 ring-red-500' : 'border-gray-300 dark:border-gray-600 focus:border-purple-500 focus:ring-purple-500'
+                  } placeholder-gray-500 dark:placeholder-gray-400 rounded-xl focus:outline-none focus:ring-2 focus:z-10 text-sm bg-gray-50 dark:bg-gray-700 dark:text-white transition-all duration-200`}
+                  placeholder="Enter your username"
+                />
+                {errors.username && (
+                  <p className="mt-2 text-sm text-red-600 animate-fadeIn">{errors.username}</p>
                 )}
               </div>
 
