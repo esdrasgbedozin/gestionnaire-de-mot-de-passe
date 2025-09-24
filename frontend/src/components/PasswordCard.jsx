@@ -142,7 +142,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
           <div className="flex items-center space-x-4 flex-1">
             {/* Icône et informations principales */}
             <div className="flex-shrink-0">
-              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white text-xl">
                 {getCategoryIcon(password.category)}
               </div>
             </div>
@@ -206,7 +206,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
             
             <button
               onClick={() => onEdit(password)}
-              className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900"
+              className="p-2 text-pink-400 hover:text-pink-600 rounded-md hover:bg-pink-50 dark:hover:bg-pink-900"
               title="Edit"
             >
               <PencilIcon className="h-4 w-4" />
@@ -249,7 +249,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
       {/* En-tête de la carte */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl">
+          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center text-white text-xl">
             {getCategoryIcon(password.category)}
           </div>
           <div>
@@ -278,7 +278,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1">
           <button
             onClick={() => onEdit(password)}
-            className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900"
+            className="p-2 text-pink-400 hover:text-pink-600 rounded-md hover:bg-pink-50 dark:hover:bg-pink-900"
             title="Modifier"
           >
             <PencilIcon className="h-4 w-4" />
@@ -318,7 +318,7 @@ const PasswordCard = ({ password, viewMode = 'grid', onEdit, onDelete }) => {
               href={password.site_url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="truncate max-w-32 hover:text-indigo-600 dark:hover:text-indigo-400"
+              className="truncate max-w-32 hover:text-pink-600 dark:hover:text-pink-400"
             >
               {password.site_url}
             </a>
