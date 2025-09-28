@@ -79,7 +79,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
     }
 
     if (charset === '') {
-      toast.error('Sélectionnez au moins un type de caractère');
+      toast.error('Please select at least one character type');
       return;
     }
 
@@ -131,10 +131,10 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(generatedPassword);
-      toast.success('Mot de passe copié dans le presse-papiers');
+      toast.success('Password copied to clipboard');
     } catch (error) {
       console.error('Erreur lors de la copie:', error);
-      toast.error('Impossible de copier le mot de passe');
+      toast.error('Failed to copy password to clipboard');
     }
   };
 

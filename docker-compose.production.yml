@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:15-alpine
+    container_name: prod_password_manager_db
+    environment:
+      POSTGRES_DB: prod_password_manager
+      POSTGRES_USER: prod_admin
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-secure_prod_password_2024}
+    volumes:
+      - prod_postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - prod_password_manager_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U prod_admin -d prod_password_manager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: prod_password_manager_backend
+    environment:
+      - FLASK_ENV=production
+      - ENV=production
+      - DATABASE_URL=postgresql://prod_admin:${DB_PASSWORD:-secure_prod_password_2024}@database:5432/prod_password_manager
+      - SECRET_KEY=${SECRET_KEY}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - BCRYPT_ROUNDS=14
+      - MAX_LOGIN_ATTEMPTS=3
+      - LOCKOUT_DURATION=1800
+      - EMERGENCY_RESET_KEY=${EMERGENCY_RESET_KEY}
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - prod_password_manager_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: prod_password_manager_frontend
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=${API_URL:-http://localhost:8080}
+    depends_on:
+      - backend
+    networks:
+      - prod_password_manager_network
+    restart: unless-stopped
+
+  # Nginx pour servir le frontend et proxy vers le backend
+  nginx:
+    image: nginx:alpine
+    container_name: prod_password_manager_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro  # Certificats SSL
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - prod_password_manager_network
+    restart: unless-stopped
+
+volumes:
+  prod_postgres_data:
+    driver: local
+
+networks:
+  prod_password_manager_network:
+    driver: bridge

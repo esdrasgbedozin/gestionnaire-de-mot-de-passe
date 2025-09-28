@@ -32,16 +32,28 @@ CREATE TABLE IF NOT EXISTS passwords (
     site_name VARCHAR(255) NOT NULL,
     site_url VARCHAR(500),
     username VARCHAR(255) NOT NULL,
+    email VARCHAR(255),
     encrypted_password TEXT NOT NULL,
+    category VARCHAR(100),
+    tags VARCHAR(500),
     notes TEXT,
+    is_favorite BOOLEAN DEFAULT FALSE,
+    priority INTEGER DEFAULT 0,
+    password_strength INTEGER,
+    requires_2fa BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_used TIMESTAMP WITH TIME ZONE
+    last_used TIMESTAMP WITH TIME ZONE,
+    password_changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    remind_before_expiry INTEGER DEFAULT 30
 );
 
 -- Index pour améliorer les performances
 CREATE INDEX IF NOT EXISTS idx_passwords_user_id ON passwords(user_id);
 CREATE INDEX IF NOT EXISTS idx_passwords_site_name ON passwords(site_name);
+CREATE INDEX IF NOT EXISTS idx_passwords_user_category ON passwords(user_id, category);
+CREATE INDEX IF NOT EXISTS idx_passwords_user_favorite ON passwords(user_id, is_favorite);
 
 -- Créer la table des logs d'audit
 CREATE TABLE IF NOT EXISTS audit_logs (

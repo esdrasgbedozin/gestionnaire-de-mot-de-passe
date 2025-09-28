@@ -35,8 +35,7 @@ def get_profile(current_user):
     except Exception as e:
         logging.error(f"Erreur lors de récupération profil: {str(e)}")
         return jsonify({
-            'error': 'Erreur serveur lors de récupération du profil',
-            'status': 'error'
+            'error': 'Server error while retrieving profile',
         }), 500
 
 @users_bp.route('/profile', methods=['PUT'])
@@ -55,8 +54,7 @@ def update_profile(current_user):
             
         if not data:
             return jsonify({
-                'error': 'Données JSON requises',
-                'status': 'error'
+                'error': 'JSON data required',
             }), 400
             
         # Mise à jour des champs autorisés
@@ -86,16 +84,15 @@ def update_profile(current_user):
         db.session.commit()
         
         return jsonify({
-            'message': 'Profil mis à jour avec succès',
-            'user': current_user.to_dict(),
-            'status': 'success'
+            'message': 'Profile updated successfully',
+            'user': current_user.to_dict()
         }), 200
         
     except SQLAlchemyError as e:
         db.session.rollback()
         logging.error(f"Erreur base de données lors de mise à jour profil: {str(e)}")
         return jsonify({
-            'error': 'Erreur serveur lors de la mise à jour',
+            'error': 'Server error during update',
             'status': 'error'
         }), 500
 
@@ -109,14 +106,13 @@ def delete_account(current_user):
         db.session.commit()
         
         return jsonify({
-            'message': 'Compte supprimé avec succès',
-            'status': 'success'
+            'message': 'Account deleted successfully',
         }), 200
         
     except SQLAlchemyError as e:
         db.session.rollback()
         logging.error(f"Erreur base de données lors de suppression compte: {str(e)}")
         return jsonify({
-            'error': 'Erreur serveur lors de la suppression',
+            'error': 'Server error during deletion',
             'status': 'error'  
         }), 500

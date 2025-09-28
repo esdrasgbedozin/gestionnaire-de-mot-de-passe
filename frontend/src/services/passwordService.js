@@ -29,10 +29,15 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('🔐 PasswordService: API Error:', error.response?.data || error.message);
+    
     if (error.response?.status === 401) {
       // Token expiré, rediriger vers login
+      console.warn('🔐 PasswordService: Token expired, cleaning up...');
       localStorage.clear();
       window.location.href = '/login';
+    } else if (error.response?.status === 500) {
+      console.error('🔐 PasswordService: Internal server error:', error.response.data);
     }
     return Promise.reject(error);
   }

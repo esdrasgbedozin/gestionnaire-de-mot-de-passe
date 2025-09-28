@@ -63,42 +63,42 @@ def validate_password_data(data, is_update=False):
     
     if not is_update or 'site_name' in data:
         if not data.get('site_name') or not data['site_name'].strip():
-            errors.append("Le nom du site est obligatoire")
+            errors.append("Site name is required")
         elif len(data['site_name'].strip()) > 255:
-            errors.append("Le nom du site ne peut pas dépasser 255 caractères")
+            errors.append("Site name cannot exceed 255 characters")
     
     if not is_update or 'username' in data:
         if not data.get('username') or not data['username'].strip():
-            errors.append("Le nom d'utilisateur est obligatoire")
+            errors.append("Username is required")
         elif len(data['username'].strip()) > 255:
-            errors.append("Le nom d'utilisateur ne peut pas dépasser 255 caractères")
+            errors.append("Username cannot exceed 255 characters")
     
     if not is_update or 'password' in data:
         if not data.get('password'):
-            errors.append("Le mot de passe est obligatoire")
+            errors.append("Password is required")
         elif len(data['password']) > 1000:  # Limite raisonnable pour un mot de passe
-            errors.append("Le mot de passe est trop long")
+            errors.append("Password is too long")
     
     # Validation optionnelle
     if 'site_url' in data and data['site_url']:
         url_pattern = re.compile(r'^https?://[^\s/$.?#].[^\s]*$')
         if not url_pattern.match(data['site_url']):
-            errors.append("L'URL du site n'est pas valide")
+            errors.append("Site URL is not valid")
         elif len(data['site_url']) > 500:
-            errors.append("L'URL ne peut pas dépasser 500 caractères")
+            errors.append("URL cannot exceed 500 characters")
     
     if 'email' in data and data['email']:
         email_pattern = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
         if not email_pattern.match(data['email']):
-            errors.append("L'adresse email n'est pas valide")
+            errors.append("Email address is not valid")
         elif len(data['email']) > 255:
-            errors.append("L'email ne peut pas dépasser 255 caractères")
+            errors.append("Email cannot exceed 255 characters")
     
     if 'category' in data and data['category'] and len(data['category']) > 100:
-        errors.append("La catégorie ne peut pas dépasser 100 caractères")
+        errors.append("Category cannot exceed 100 characters")
     
     if 'notes' in data and data['notes'] and len(data['notes']) > 5000:
-        errors.append("Les notes ne peuvent pas dépasser 5000 caractères")
+        errors.append("Notes cannot exceed 5000 characters")
     
     return errors
 
@@ -172,7 +172,7 @@ def get_passwords(current_user):
     except Exception as e:
         log_audit_event('LIST_PASSWORDS', success=False, error_message=str(e), user_id=user_id)
         current_app.logger.error(f"Erreur lors de la récupération des mots de passe: {e}")
-        return jsonify({'error': 'Erreur interne du serveur'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @passwords_bp.route('/<string:password_id>', methods=['GET'])
@@ -188,19 +188,20 @@ def get_password(current_user, password_id):
         ).first()
         
         if not password_entry:
-            log_audit_event('VIEW_PASSWORD', success=False, error_message="Mot de passe non trouvé", resource_id=password_id, user_id=user_id)
-            return jsonify({'error': 'Mot de passe non trouvé'}), 404
+            log_audit_event('VIEW_PASSWORD', success=False, error_message="Password not found", resource_id=password_id, user_id=user_id)
+            return jsonify({'error': 'Password not found'}), 404
         
         # Déchiffrer le mot de passe
         try:
-            user_key = EncryptionService.generate_user_key(user_id, "temp_key")  # À améliorer
+            # Utiliser l'email de l'utilisateur comme clé de base pour le chiffrement
+            user_key = EncryptionService.generate_user_key(str(user_id), current_user.email)
             decrypted_password = EncryptionService.decrypt_password(
                 password_entry.encrypted_password, 
                 user_key
             )
         except Exception as decrypt_error:
-            log_audit_event('VIEW_PASSWORD', success=False, error_message=f"Erreur déchiffrement: {str(decrypt_error)}", resource_id=password_id, user_id=user_id)
-            return jsonify({'error': 'Impossible de déchiffrer le mot de passe'}), 500
+            log_audit_event('VIEW_PASSWORD', success=False, error_message=f"Decryption error: {str(decrypt_error)}", resource_id=password_id, user_id=user_id)
+            return jsonify({'error': 'Unable to decrypt password'}), 500
         
         # Mettre à jour la date de dernière utilisation
         password_entry.last_used = datetime.now(timezone.utc)
@@ -217,7 +218,7 @@ def get_password(current_user, password_id):
     except Exception as e:
         log_audit_event('VIEW_PASSWORD', success=False, error_message=str(e), resource_id=password_id, user_id=user_id)
         current_app.logger.error(f"Erreur lors de la récupération du mot de passe: {e}")
-        return jsonify({'error': 'Erreur interne du serveur'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @passwords_bp.route('/', methods=['POST'])
@@ -231,21 +232,22 @@ def create_password(current_user):
         data = get_validated_data()
         
         if not data:
-            return jsonify({'error': 'Données JSON requises'}), 400
+            return jsonify({'error': 'JSON data required'}), 400
         
         # Validation
         errors = validate_password_data(data)
         if errors:
             log_audit_event('CREATE_PASSWORD', success=False, error_message=f"Validation: {'; '.join(errors)}", user_id=user_id)
-            return jsonify({'error': 'Données invalides', 'details': errors}), 400
+            return jsonify({'error': 'Invalid data', 'details': errors}), 400
         
         # Chiffrer le mot de passe
         try:
-            user_key = EncryptionService.generate_user_key(user_id, "temp_key")  # À améliorer
+            # Utiliser l'email de l'utilisateur comme clé de base pour le chiffrement
+            user_key = EncryptionService.generate_user_key(str(user_id), current_user.email)
             encrypted_password = EncryptionService.encrypt_password(data['password'], user_key)
         except Exception as encrypt_error:
-            log_audit_event('CREATE_PASSWORD', success=False, error_message=f"Erreur chiffrement: {str(encrypt_error)}", user_id=user_id)
-            return jsonify({'error': 'Erreur lors du chiffrement'}), 500
+            log_audit_event('CREATE_PASSWORD', success=False, error_message=f"Encryption error: {str(encrypt_error)}", user_id=user_id)
+            return jsonify({'error': 'Encryption error'}), 500
         
         # Évaluer la force du mot de passe
         strength_info = PasswordGenerator.evaluate_strength(data['password'])
@@ -277,19 +279,19 @@ def create_password(current_user):
         log_audit_event('CREATE_PASSWORD', resource_id=password_entry.id, user_id=user_id)
         
         return jsonify({
-            'message': 'Mot de passe créé avec succès',
+            'message': 'Password created successfully',
             'password': password_entry.to_dict()
         }), 201
         
     except IntegrityError:
         db.session.rollback()
-        log_audit_event('CREATE_PASSWORD', success=False, error_message="Violation contrainte base de données", user_id=user_id)
-        return jsonify({'error': 'Erreur de contrainte de base de données'}), 400
+        log_audit_event('CREATE_PASSWORD', success=False, error_message="Database constraint violation", user_id=user_id)
+        return jsonify({'error': 'Database constraint error'}), 400
     except Exception as e:
         db.session.rollback()
         log_audit_event('CREATE_PASSWORD', success=False, error_message=str(e), user_id=user_id)
         current_app.logger.error(f"Erreur lors de la création du mot de passe: {e}")
-        return jsonify({'error': 'Erreur interne du serveur'}), 500
+        return jsonify({'error': 'Internal server error'}), 500
 
 
 @passwords_bp.route('/generate', methods=['POST'])
@@ -412,7 +414,7 @@ def update_password(current_user, password_id):
         data = get_validated_data()
         
         if not data:
-            return jsonify({'error': 'Données requises'}), 400
+            return jsonify({'error': 'Data required'}), 400
         
         # Valider les données (mise à jour partielle autorisée)
         validation_error = validate_password_data(data, is_update=True)
@@ -427,9 +429,9 @@ def update_password(current_user, password_id):
         
         if not password_obj:
             log_audit_event('UPDATE_PASSWORD', success=False, 
-                          error_message='Mot de passe non trouvé', 
+                          error_message='Password not found', 
                           resource_id=password_id, user_id=user_id)
-            return jsonify({'error': 'Mot de passe non trouvé'}), 404
+            return jsonify({'error': 'Password not found'}), 404
         
         # Mettre à jour les champs fournis
         if 'site_name' in data:
@@ -452,7 +454,8 @@ def update_password(current_user, password_id):
         # Si le mot de passe est modifié, le chiffrer et calculer la force
         if 'password' in data:
             try:
-                user_key = EncryptionService.generate_user_key(str(user_id), "temp_key")  # À améliorer
+                # Utiliser l'email de l'utilisateur comme clé de base pour le chiffrement
+                user_key = EncryptionService.generate_user_key(str(user_id), current_user.email)
                 encrypted_password = EncryptionService.encrypt_password(data['password'], user_key)
                 password_obj.encrypted_password = encrypted_password
                 
@@ -460,9 +463,9 @@ def update_password(current_user, password_id):
                 password_obj.password_strength = strength_info['strength']
                 password_obj.password_changed_at = datetime.now(timezone.utc)
             except Exception as encrypt_error:
-                log_audit_event('UPDATE_PASSWORD', success=False, error_message=f"Erreur chiffrement: {str(encrypt_error)}", 
+                log_audit_event('UPDATE_PASSWORD', success=False, error_message=f"Encryption error: {str(encrypt_error)}", 
                                resource_id=password_id, user_id=user_id)
-                return jsonify({'error': 'Erreur lors du chiffrement'}), 500
+                return jsonify({'error': 'Encryption error'}), 500
         
         password_obj.updated_at = datetime.now(timezone.utc)
         
@@ -516,16 +519,16 @@ def delete_password(current_user, password_id):
         
         if not password_obj:
             log_audit_event('DELETE_PASSWORD', success=False, 
-                          error_message='Mot de passe non trouvé', 
+                          error_message='Password not found', 
                           resource_id=password_id, user_id=user_id)
-            return jsonify({'error': 'Mot de passe non trouvé'}), 404
+            return jsonify({'error': 'Password not found'}), 404
         
         db.session.delete(password_obj)
         db.session.commit()
         
         log_audit_event('DELETE_PASSWORD', resource_id=password_id, user_id=user_id)
         
-        return jsonify({'message': 'Mot de passe supprimé avec succès'}), 200
+        return jsonify({'message': 'Password deleted successfully'}), 200
         
     except Exception as e:
         db.session.rollback()

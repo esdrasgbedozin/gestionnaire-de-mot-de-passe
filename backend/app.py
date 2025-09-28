@@ -33,7 +33,11 @@ def create_app(config_name=None):
     bcrypt.init_app(app)
     
     # Configuration CORS
-    CORS(app, origins=app.config['CORS_ORIGINS'])
+    CORS(app, 
+         origins=app.config['CORS_ORIGINS'], 
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     
     # Import des modèles (nécessaire pour les migrations)
     from app.models import User, Password, AuditLog
@@ -48,10 +52,6 @@ def create_app(config_name=None):
     app.register_blueprint(users_bp, url_prefix='/api/users')
     
     # Route de santé pour Docker
-    @app.route('/health')
-    def health_check():
-        return jsonify({'status': 'healthy', 'message': 'Password Manager API is running'})
-    
     # Route de base
     @app.route('/')
     def index():
@@ -85,9 +85,90 @@ def create_app(config_name=None):
     # Configurer les headers de sécurité
     app = setup_security_headers(app)
     
+    # Health check endpoints
+    @app.route('/health', methods=['GET'])
+    def health_check():
+        """Health check complet pour la production"""
+        start_time = time.time()
+        health_status = {
+            'status': 'healthy',
+            'timestamp': time.time(),
+            'services': {},
+            'response_time_ms': 0
+        }
+        
+        try:
+            # Test de la base de données
+            db_start = time.time()
+            try:
+                from sqlalchemy import text
+                db.session.execute(text('SELECT 1'))
+                db_time = (time.time() - db_start) * 1000
+                health_status['services']['database'] = {
+                    'status': 'ok',
+                    'response_time_ms': round(db_time, 2)
+                }
+            except Exception as e:
+                health_status['services']['database'] = {
+                    'status': 'error',
+                    'error': str(e)
+                }
+                health_status['status'] = 'unhealthy'
+                logger.error(f"Database health check failed: {e}")
+            
+        except Exception as e:
+            health_status['status'] = 'error'
+            health_status['error'] = str(e)
+            logger.error(f"Health check failed: {e}")
+        
+        # Temps de réponse total
+        health_status['response_time_ms'] = round((time.time() - start_time) * 1000, 2)
+        
+        # Statut HTTP approprié
+        status_code = 200 if health_status['status'] == 'healthy' else 503
+        return jsonify(health_status), status_code
+
     return app
 
 
 if __name__ == '__main__':
+    import time
+    import logging
+    
+    # Configuration du logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    logger.info("🚀 Démarrage de l'application Password Manager...")
+    
     app = create_app()
+    
+    # Attendre que la base de données soit disponible
+    max_retries = 30
+    for attempt in range(max_retries):
+        try:
+            with app.app_context():
+                db.session.execute(db.text("SELECT 1"))
+                db.session.commit()
+                logger.info("✅ Connexion à la base de données réussie")
+                break
+        except Exception as e:
+            logger.warning(f"⏳ Tentative {attempt + 1}/{max_retries}: Base de données non disponible - {e}")
+            if attempt < max_retries - 1:
+                time.sleep(2)
+            else:
+                logger.error("❌ Impossible de se connecter à la base de données")
+                exit(1)
+    
+    # Initialiser la base de données
+    try:
+        with app.app_context():
+            db.create_all()
+            logger.info("✅ Tables de base de données initialisées")
+    except Exception as e:
+        logger.error(f"❌ Erreur lors de l'initialisation: {e}")
+        exit(1)
+    
+    logger.info("🎉 Application prête à démarrer!")
+    
     app.run(host='0.0.0.0', port=5000, debug=True)
