@@ -77,6 +77,15 @@ start_app() {
         attempt=$((attempt + 1))
     done
     
+    # 🆕 MIGRATION AUTOMATIQUE DE LA BASE DE DONNÉES
+    echo ""
+    echo "🔄 Vérification et migration de la base de données..."
+    if [ -f "./tools/migrate_database.sh" ]; then
+        ./tools/migrate_database.sh
+    else
+        echo "⚠️ Script de migration non trouvé - continuons sans migration"
+    fi
+    
     # Vérification finale
     echo ""
     echo "🔍 Vérification finale de la santé..."
@@ -93,6 +102,7 @@ start_app() {
     echo "   • Première utilisation: Créer un compte via 'S'inscrire'"
     echo "   • Si erreur: ./deploy.sh health puis ./deploy.sh logs"
     echo "   • Problème de connexion: ./tools/rate_limit_helper.sh reset"
+    echo "   • Migration manuelle: ./tools/migrate_database.sh"
 }
 
 # Arrêter l'application
@@ -211,7 +221,13 @@ main() {
             show_logs
             ;;
         "migrate")
-            migrate_db
+            echo "🔄 Migration manuelle de la base de données..."
+            if [ -f "./tools/migrate_database.sh" ]; then
+                ./tools/migrate_database.sh
+            else
+                echo "❌ Script de migration non trouvé"
+                exit 1
+            fi
             ;;
         "clean")
             clean_all

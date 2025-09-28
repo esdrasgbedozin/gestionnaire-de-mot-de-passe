@@ -68,7 +68,9 @@ cd gestionnaire-de-mot-de-passe
 
 # Outils de diagnostic
 ./tools/rate_limit_helper.sh reset    # Débloquer rate limit
-./tools/security_test.py              # Audit sécurité
+python3 tools/security_test.py        # Audit sécurité complet
+python3 tools/test_functional.py      # Tests fonctionnels
+./tools/migrate_database.sh           # Migration manuelle BDD
 ```
 
 ---
@@ -97,7 +99,7 @@ gestionnaire-de-mot-de-passe/
 
 ## 🛡️ Sécurité
 
-**Score de sécurité : A+ (92/100)**
+**Score de sécurité : A+ (94/100)**
 
 ✅ **Tests réalisés :**
 - Injection SQL → **BLOQUÉE**
@@ -112,30 +114,94 @@ gestionnaire-de-mot-de-passe/
 
 ---
 
+## 🛠️ Développement
+
+### 🚀 Démarrage Rapide pour Développeurs
+```bash
+# Cloner le projet
+git clone https://github.com/esdrasgbedozin/gestionnaire-de-mot-de-passe
+cd gestionnaire-de-mot-de-passe
+
+# Lancement en mode développement
+./deploy.sh start
+
+# Accès aux applications
+# Frontend: http://localhost:3000
+# API: http://localhost:8080
+# Base de données: localhost:5432 (interne seulement)
+```
+
+### 🧪 Tests et Validation
+```bash
+# Tests fonctionnels complets
+python3 tools/test_functional.py
+
+# Audit de sécurité
+python3 tools/security_test.py
+
+# Vérification santé des services
+./deploy.sh health
+```
+
+### 🔧 Structure du Code
+```
+backend/
+├── app.py              # Point d'entrée Flask
+├── config.py           # Configuration environnement
+├── extensions.py       # Extensions Flask (DB, JWT, etc.)
+└── app/
+    ├── routes/         # Endpoints API (auth, passwords, users)
+    ├── services/       # Logique métier (encryption, JWT, etc.)
+    └── models/         # (Future implémentation SQLAlchemy)
+
+frontend/src/
+├── components/         # Composants React réutilisables
+├── pages/             # Pages de l'application
+├── services/          # Appels API
+├── contexts/          # Gestion d'état (Auth, Theme)
+└── utils/             # Utilitaires
+```
+
 ## 🆘 Résolution de Problèmes
 
 | Problème | Solution |
 |----------|----------|
-| "Error loading passwords" | `./deploy.sh restart` |
+| "Error loading passwords" | `./deploy.sh restart` (migration auto) |
 | "Rate limit exceeded" | `./tools/rate_limit_helper.sh reset` |
-| Problème de build | `./deploy.sh clean && ./deploy.sh start` |
-| Logs détaillés | `./deploy.sh debug` |
+| "Internal Server Error" | `./deploy.sh clean && ./deploy.sh start` |
+| Problème de migration BDD | `./tools/migrate_database.sh` |
+| Logs détaillés | `docker logs password_manager_backend` |
 
 ---
 
 ## 📚 Documentation
 
-- **📋 API :** [docs/API-DOCUMENTATION.md](docs/API-DOCUMENTATION.md)
-- **🏭 Production :** [PRODUCTION-GUIDE.md](PRODUCTION-GUIDE.md)
-- **📊 Cahier des charges :** [cahier_des_charges.md](cahier_des_charges.md)
+- **� Ce README** : Guide complet du projet
+- **�📋 API :** [docs/API-DOCUMENTATION.md](docs/API-DOCUMENTATION.md) - Référence complète des endpoints
+- **🏭 Production :** [PRODUCTION-GUIDE.md](PRODUCTION-GUIDE.md) - Déploiement sécurisé
+- **📊 Spécifications :** [cahier_des_charges.md](cahier_des_charges.md) - Exigences du projet
 
 ---
 
-## 🎖️ Technologies
+## 🎖️ Architecture Technique
 
-**Backend:** Flask, PostgreSQL, JWT, AES-256  
-**Frontend:** React, TailwindCSS, Context API  
-**Déploiement:** Docker, Nginx, SSL/TLS
+### 🏗️ Stack Technologique
+**Backend:** Flask (Python 3.11) + PostgreSQL 15 + JWT + AES-256-GCM  
+**Frontend:** React 18 + TailwindCSS + Context API  
+**Déploiement:** Docker Compose + Nginx + SSL/TLS
+
+### 🔐 Sécurité Intégrée
+- **Chiffrement**: AES-256-GCM pour les mots de passe
+- **Authentification**: JWT avec expiration
+- **Rate Limiting**: Adaptatif (dev: 20/5min, prod: 5/5min)
+- **Protection**: CORS, CSP, XSS, injection SQL
+- **Migration BDD**: Automatique au démarrage
+
+### 📊 Base de Données
+- **PostgreSQL 15** avec chiffrement
+- **Migration automatique** des schémas
+- **Sauvegarde** intégrée
+- **Index optimisés** pour les performances
 
 ---
 
