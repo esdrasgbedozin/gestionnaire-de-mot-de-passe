@@ -44,21 +44,55 @@ check_docker() {
 start_app() {
     echo "🚀 Démarrage de l'application..."
     
-    # Arrêter les containers existants
-    docker-compose down || true
-    
     # Construire et démarrer
     docker-compose up --build -d
     
+    echo ""
     echo "⏳ Attente du démarrage des services..."
-    sleep 10
+    echo "   Première fois = 2-3 minutes (téléchargement + build)"
+    echo "   Démarrages suivants = 10-15 secondes"
+    echo ""
     
-    echo "🔍 Vérification de la santé des services..."
+    # Attendre suffisamment pour la première fois
+    sleep 15
+    
+    # Vérifier progressivement avec des messages clairs
+    echo "� Vérification progressive des services..."
+    
+    # Test simple - attendre que l'API réponde
+    local max_attempts=20
+    local attempt=1
+    
+    while [ $attempt -le $max_attempts ]; do
+        if curl -s http://localhost:8080/health | grep -q "healthy"; then
+            echo "✅ Backend API prêt (tentative $attempt/$max_attempts)"
+            break
+        fi
+        
+        if [ $((attempt % 4)) -eq 0 ]; then
+            echo "   Tentative $attempt/$max_attempts - Services en cours de démarrage..."
+        fi
+        
+        sleep 3
+        attempt=$((attempt + 1))
+    done
+    
+    # Vérification finale
+    echo ""
+    echo "🔍 Vérification finale de la santé..."
     check_health
     
+    echo ""
     echo "✅ Application démarrée!"
     echo "📱 Frontend: http://localhost:3000"
-    echo "🔧 Backend: http://localhost:8080"
+    echo "🔧 Backend API: http://localhost:8080"
+    echo ""
+    
+    # Conseils utiles
+    echo "💡 Conseils:"
+    echo "   • Première utilisation: Créer un compte via 'S'inscrire'"
+    echo "   • Si erreur: ./deploy.sh health puis ./deploy.sh logs"
+    echo "   • Problème de connexion: ./tools/rate_limit_helper.sh reset"
 }
 
 # Arrêter l'application
