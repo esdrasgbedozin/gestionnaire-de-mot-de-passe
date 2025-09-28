@@ -53,6 +53,17 @@ const Dashboard = () => {
     try {
       setLoading(true);
       console.log('📱 Dashboard: Starting to load passwords...');
+      
+      // Vérifier le token avant de faire la requête
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        console.error('📱 Dashboard: No token found in localStorage');
+        toast.error('Session expired, please login again');
+        navigate('/login');
+        return;
+      }
+      
+      console.log('📱 Dashboard: Token found, making request...');
       const response = await passwordService.getPasswords();
       console.log('📱 Dashboard: Response from passwordService:', response);
       
@@ -96,10 +107,15 @@ const Dashboard = () => {
       } else {
         console.error('📱 Dashboard: Error loading passwords:', response.error);
         toast.error(response.error || 'Error loading passwords');
+        
+        // Si erreur d'authentification, rediriger vers login
+        if (response.error && (response.error.includes('token') || response.error.includes('unauthorized'))) {
+          navigate('/login');
+        }
       }
     } catch (error) {
       console.error('📱 Dashboard: Exception loading passwords:', error);
-      toast.error('Error loading passwords');
+      toast.error('Network error - please check your connection');
     } finally {
       console.log('📱 Dashboard: Finished loading passwords, setting loading to false');
       setLoading(false);

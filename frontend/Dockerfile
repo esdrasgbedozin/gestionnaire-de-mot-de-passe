@@ -15,7 +15,7 @@ COPY . .
 EXPOSE 3000
 
 # Variables d'environnement
-ENV REACT_APP_API_URL=http://localhost:5000/api
+ENV REACT_APP_API_URL=http://localhost:8080/api
 ENV CHOKIDAR_USEPOLLING=true
 
 # Commande de démarrage

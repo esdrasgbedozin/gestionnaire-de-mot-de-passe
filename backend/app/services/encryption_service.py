@@ -133,12 +133,13 @@ class EncryptionService:
             raise ValueError(f"Erreur lors du déchiffrement: {str(e)}")
     
     @staticmethod
-    def generate_user_key(user_id: str, user_password: str) -> str:
+    def generate_user_key(user_id: str, user_email: str) -> str:
         """
-        Générer une clé utilisateur unique basée sur son ID et mot de passe
+        Générer une clé utilisateur unique basée sur son ID et email
         Cette clé servira pour chiffrer/déchiffrer ses mots de passe
         """
-        combined = f"{user_id}:{user_password}"
+        # Utiliser l'email comme base, qui est unique et stable
+        combined = f"{user_id}:{user_email}"
         return hashlib.sha256(combined.encode('utf-8')).hexdigest()
     
     @staticmethod

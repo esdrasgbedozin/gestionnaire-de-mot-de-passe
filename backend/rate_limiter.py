@@ -23,23 +23,46 @@ class RateLimiter:
         # Structure: {client_id: {endpoint: deque of timestamps}}
         self.requests = defaultdict(lambda: defaultdict(deque))
         
-        # Configuration par endpoint
-        self.limits = {
-            # Authentification - moins strict en développement
-            '/api/auth/login': {'requests': 10, 'window': 300, 'block_duration': 120},  # 10/5min, block 2min
-            '/api/auth/register': {'requests': 5, 'window': 300, 'block_duration': 120},  # 5/5min, block 2min
-            '/api/auth/refresh': {'requests': 20, 'window': 300, 'block_duration': 60},  # 20/5min, block 1min
-            
-            # Mots de passe - modéré
-            '/api/passwords': {'requests': 50, 'window': 60, 'block_duration': 60},  # 50/min, block 1min
-            '/api/passwords/*': {'requests': 30, 'window': 60, 'block_duration': 60},  # 30/min, block 1min
-            
-            # Utilisateurs - modéré
-            '/api/users/profile': {'requests': 30, 'window': 60, 'block_duration': 60},  # 30/min, block 1min
-            
-            # Défaut pour toutes les autres routes
-            'default': {'requests': 100, 'window': 60, 'block_duration': 60}  # 100/min, block 1min
-        }
+        # Configuration par endpoint - Mode développement plus permissif
+        import os
+        is_development = os.environ.get('FLASK_ENV') == 'development' or os.environ.get('ENV') != 'production'
+        
+        if is_development:
+            # Configuration développement - plus permissive
+            self.limits = {
+                # Authentification - très permissif en développement
+                '/api/auth/login': {'requests': 20, 'window': 300, 'block_duration': 60},  # 20/5min, block 1min
+                '/api/auth/register': {'requests': 10, 'window': 300, 'block_duration': 60},  # 10/5min, block 1min
+                '/api/auth/refresh': {'requests': 50, 'window': 300, 'block_duration': 30},  # 50/5min, block 30s
+                
+                # Mots de passe - très permissif
+                '/api/passwords': {'requests': 100, 'window': 60, 'block_duration': 30},  # 100/min, block 30s
+                '/api/passwords/*': {'requests': 100, 'window': 60, 'block_duration': 30},  # 100/min, block 30s
+                
+                # Utilisateurs - très permissif
+                '/api/users/profile': {'requests': 100, 'window': 60, 'block_duration': 30},  # 100/min, block 30s
+                
+                # Défaut pour toutes les autres routes
+                'default': {'requests': 200, 'window': 60, 'block_duration': 30}  # 200/min, block 30s
+            }
+        else:
+            # Configuration production - sécurité renforcée
+            self.limits = {
+                # Authentification - strict en production
+                '/api/auth/login': {'requests': 5, 'window': 300, 'block_duration': 300},  # 5/5min, block 5min
+                '/api/auth/register': {'requests': 3, 'window': 300, 'block_duration': 300},  # 3/5min, block 5min
+                '/api/auth/refresh': {'requests': 10, 'window': 300, 'block_duration': 120},  # 10/5min, block 2min
+                
+                # Mots de passe - modéré
+                '/api/passwords': {'requests': 30, 'window': 60, 'block_duration': 120},  # 30/min, block 2min
+                '/api/passwords/*': {'requests': 20, 'window': 60, 'block_duration': 120},  # 20/min, block 2min
+                
+                # Utilisateurs - modéré
+                '/api/users/profile': {'requests': 20, 'window': 60, 'block_duration': 120},  # 20/min, block 2min
+                
+                # Défaut pour toutes les autres routes
+                'default': {'requests': 60, 'window': 60, 'block_duration': 120}  # 60/min, block 2min
+            }
         
         # Blocked IPs: {client_id: unblock_time}
         self.blocked_clients = {}
@@ -250,14 +273,22 @@ def setup_rate_limiting(app):
     def rate_limit_stats():
         return jsonify(rate_limiter.get_stats())
     
-    # Route pour réinitialiser le rate limiting (développement uniquement)
+    # Route pour réinitialiser le rate limiting (développement et dépannage d'urgence)
     @app.route('/api/admin/rate-limit-reset', methods=['POST'])
     def reset_rate_limit():
         from flask import request
+        import os
         
-        # Sécurité : uniquement en mode développement
-        if app.config.get('ENV', 'production') == 'production':
-            return jsonify({'error': 'Not available in production'}), 403
+        # Permettre la réinitialisation en mode développement
+        # Ou avec une clé d'urgence en production
+        is_development = app.config.get('ENV', 'production') != 'production'
+        has_emergency_key = request.headers.get('X-Emergency-Key') == os.environ.get('EMERGENCY_RESET_KEY')
+        
+        if not is_development and not has_emergency_key:
+            return jsonify({
+                'error': 'Access denied', 
+                'message': 'Rate limit reset not available in production without emergency key'
+            }), 403
         
         data = request.get_json() or {}
         client_id = data.get('client_id')

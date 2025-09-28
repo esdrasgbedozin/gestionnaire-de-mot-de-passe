@@ -145,6 +145,7 @@ const Register = () => {
 
       if (result.success) {
         toast.success('🎉 Account created successfully! Welcome!', {
+          duration: 4000,
           style: {
             borderRadius: '12px',
             background: '#10B981',
@@ -153,6 +154,7 @@ const Register = () => {
         });
       } else {
         toast.error(result.error || 'Registration failed', {
+          duration: 4000,
           style: {
             borderRadius: '12px',
             background: '#EF4444',

@@ -81,6 +81,7 @@ const Login = () => {
 
       if (result.success) {
         toast.success('🎉 Welcome back!', {
+          duration: 4000,
           style: {
             borderRadius: '12px',
             background: '#10B981',
@@ -89,6 +90,7 @@ const Login = () => {
         });
       } else {
         toast.error(result.error || 'Login failed', {
+          duration: 4000,
           style: {
             borderRadius: '12px',
             background: '#EF4444',
