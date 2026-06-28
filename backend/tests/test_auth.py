@@ -4,7 +4,7 @@ Tests unitaires pour l'authentification
 
 import pytest
 import json
-from app import create_app, db
+from app_entry import create_app, db
 from app.models import User
 from werkzeug.security import generate_password_hash
 
