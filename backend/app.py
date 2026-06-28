@@ -7,7 +7,7 @@ from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from config import config
+from config import config, validate_required_secrets
 from extensions import db, bcrypt
 from rate_limiter import setup_rate_limiting
 from security_headers import setup_security_headers
@@ -25,6 +25,12 @@ def create_app(config_name=None):
     
     app = Flask(__name__)
     app.config.from_object(config[config_name])
+
+    # Fail-fast : exiger les secrets depuis l'environnement (hors mode test).
+    # L'app refuse de démarrer si un secret requis est absent, plutôt que
+    # d'utiliser une valeur par défaut non sécurisée.
+    if not app.config.get('TESTING'):
+        validate_required_secrets()
     
     # Initialisation des extensions
     db.init_app(app)
