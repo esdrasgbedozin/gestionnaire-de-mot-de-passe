@@ -6,7 +6,6 @@ import pytest
 import json
 from app_entry import create_app, db
 from app.models import User
-from werkzeug.security import generate_password_hash
 
 
 @pytest.fixture
@@ -37,9 +36,9 @@ def sample_user(app):
     """Fixture pour créer un utilisateur de test"""
     with app.app_context():
         user = User(
-            username='testuser',
             email='test@example.com',
-            password_hash=generate_password_hash('TestPassword123!')
+            password='TestPassword123!',
+            username='testuser'
         )
         db.session.add(user)
         db.session.commit()
