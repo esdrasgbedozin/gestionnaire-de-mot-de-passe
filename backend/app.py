@@ -85,6 +85,13 @@ def create_app(config_name=None):
     def missing_token_callback(error):
         return jsonify({'message': 'Authorization token is required'}), 401
     
+    # Coffre verrouillé (VMK absente de la session) → 423, jamais 500 (Lot 3 / C1)
+    from app.services.session_key_store import VaultLockedError
+
+    @app.errorhandler(VaultLockedError)
+    def handle_vault_locked(error):
+        return jsonify({'error': str(error), 'code': 'vault_locked'}), 423
+
     # Configurer le rate limiting
     app = setup_rate_limiting(app)
     

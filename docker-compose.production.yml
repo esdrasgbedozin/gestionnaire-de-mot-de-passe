@@ -36,8 +36,11 @@ services:
       - MAX_LOGIN_ATTEMPTS=3
       - LOCKOUT_DURATION=1800
       - EMERGENCY_RESET_KEY=${EMERGENCY_RESET_KEY:?EMERGENCY_RESET_KEY is required (see .env)}
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       database:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - prod_password_manager_network
@@ -78,6 +81,20 @@ services:
       - backend
     networks:
       - prod_password_manager_network
+    restart: unless-stopped
+
+  # Redis — session key store (VMK en mémoire, Lot 3/C1). SANS persistance disque.
+  redis:
+    image: redis:7-alpine
+    container_name: prod_password_manager_redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - prod_password_manager_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
 volumes:

@@ -123,3 +123,96 @@ class TestCryptoPrimitives:
         entries = {self._nonce(E.encrypt_entry('x', vmk)) for _ in range(5)}
         assert len(wraps) == 5
         assert len(entries) == 5
+
+
+import json
+import time
+import fakeredis
+from app.services.session_key_store import SessionKeyStore, VaultLockedError
+
+
+def _store(server=None):
+    return SessionKeyStore(client=fakeredis.FakeStrictRedis(server=server))
+
+
+class TestSessionKeyStore:
+    """Incrément (c) : VMK détenue dans Redis le temps de la session."""
+
+    def test_store_get_roundtrip(self):
+        store = _store()
+        vmk = E.generate_vmk()
+        store.store_vmk('sess-1', vmk, 60)
+        assert store.get_vmk('sess-1') == vmk
+
+    def test_ttl_is_applied(self):
+        store = _store()
+        store.store_vmk('sess-ttl', E.generate_vmk(), 60)
+        ttl = store._client.ttl('vault:vmk:sess-ttl')
+        assert 0 < ttl <= 60
+
+    def test_evict_removes_vmk(self):
+        """Logout → VMK évincée → serveur incapable de déchiffrer."""
+        store = _store()
+        store.store_vmk('sess-2', E.generate_vmk(), 60)
+        store.evict('sess-2')
+        assert store.get_vmk('sess-2') is None
+
+    def test_absent_raises_vault_locked(self):
+        store = _store()
+        with pytest.raises(VaultLockedError):
+            store.get_required_vmk('does-not-exist')
+
+    def test_expiry_then_locked(self):
+        """Expiration TTL (simulée) → VMK absente → VaultLockedError (→ 423, pas 500)."""
+        store = _store()
+        store.store_vmk('sess-exp', E.generate_vmk(), 1)
+        store._client.delete('vault:vmk:sess-exp')  # équivalent à l'expiration du TTL
+        with pytest.raises(VaultLockedError):
+            store.get_required_vmk('sess-exp')
+
+    def test_multi_worker_shared(self):
+        """Une VMK écrite par un worker est lisible par un autre (même Redis)."""
+        server = fakeredis.FakeServer()
+        worker_a = _store(server)
+        worker_b = _store(server)
+        vmk = E.generate_vmk()
+        worker_a.store_vmk('shared', vmk, 60)
+        assert worker_b.get_vmk('shared') == vmk
+
+    def test_no_argon2_re_derivation_on_retrieval(self, monkeypatch):
+        """PREUVE : la récupération de la VMK ne re-dérive JAMAIS la KEK (Argon2id)."""
+        store = _store()
+        vmk = E.generate_vmk()
+        store.store_vmk('perf', vmk, 60)
+
+        calls = {'n': 0}
+        real = E.derive_kek
+
+        def spy(*a, **k):
+            calls['n'] += 1
+            return real(*a, **k)
+
+        monkeypatch.setattr(E, 'derive_kek', spy)
+        t0 = time.perf_counter()
+        for _ in range(50):
+            assert store.get_vmk('perf') == vmk
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+
+        assert calls['n'] == 0          # aucune dérivation Argon2id sur le chemin de lecture
+        assert elapsed_ms < 149         # 50 lectures < le coût d'UNE seule dérivation Argon2id
+
+
+class TestVaultLockedResponse:
+    """La VMK absente produit un 423 « verrouillé », jamais un 500."""
+
+    def test_absent_vmk_returns_423_not_500(self, app):
+        store = _store()
+
+        def locked_route():
+            store.get_required_vmk('no-session')  # lève VaultLockedError
+            return {'ok': True}
+
+        app.add_url_rule('/__vault_locked_test__', 'vault_locked_test', locked_route)
+        resp = app.test_client().get('/__vault_locked_test__')
+        assert resp.status_code == 423
+        assert json.loads(resp.data)['code'] == 'vault_locked'

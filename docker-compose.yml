@@ -34,12 +34,15 @@ services:
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required (see .env)}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required (see .env)}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required (see .env)}
+      - REDIS_URL=redis://redis:6379/0
     ports:
       - "8080:5000"
     volumes:
       - ./backend:/app
     depends_on:
       database:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - password_manager_network
@@ -70,6 +73,20 @@ services:
         condition: service_healthy
     networks:
       - password_manager_network
+    restart: unless-stopped
+
+  # Redis — session key store (VMK en mémoire, Lot 3/C1). SANS persistance disque.
+  redis:
+    image: redis:7-alpine
+    container_name: password_manager_redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - password_manager_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     restart: unless-stopped
 
 networks:
