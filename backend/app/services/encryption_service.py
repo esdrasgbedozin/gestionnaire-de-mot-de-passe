@@ -10,6 +10,8 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.backends import default_backend
 import secrets
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from argon2.low_level import hash_secret_raw, Type
 
 
 class EncryptionService:
@@ -21,6 +23,15 @@ class EncryptionService:
     SALT_LENGTH = 32 # 256 bits
     TAG_LENGTH = 16  # 128 bits
     PBKDF2_ITERATIONS = 100000  # Nombre d'itérations PBKDF2
+
+    # --- Zero-knowledge (Lot 3 / C1) ---
+    VMK_LENGTH = 32          # Vault Master Key : 256 bits
+    GCM_NONCE_LENGTH = 12    # Nonce AES-GCM : 96 bits (recommandation NIST)
+    # Paramètres Argon2id (configurables par variables d'environnement)
+    ARGON2_MEMORY_KIB = int(os.environ.get('ARGON2_MEMORY_KIB', 196608))  # 192 MiB (benchmark ~160 ms, cible 100-250 ms)
+    ARGON2_TIME_COST = int(os.environ.get('ARGON2_TIME_COST', 3))
+    ARGON2_PARALLELISM = int(os.environ.get('ARGON2_PARALLELISM', 2))
+    ARGON2_KEY_LENGTH = 32   # KEK : 256 bits
     
     @staticmethod
     def derive_key(password: str, salt: bytes) -> bytes:
@@ -40,6 +51,88 @@ class EncryptionService:
         )
         
         return kdf.derive(password)
+
+    # ==================================================================
+    # Zero-knowledge (Lot 3 / C1) : KEK Argon2id + VMK enveloppee (AES-GCM)
+    # Format AES-GCM commun : base64( nonce(12) || ciphertext || tag(16) )
+    # ==================================================================
+
+    @staticmethod
+    def derive_kek(master_password: str, salt: bytes) -> bytes:
+        """Deriver la Key-Encryption-Key depuis le master password via Argon2id.
+
+        La KEK ne sert qu'a envelopper/desenvelopper la VMK ; elle n'est jamais
+        stockee. Parametres configurables via les constantes ARGON2_*.
+        """
+        if not master_password:
+            raise ValueError("master_password requis")
+        if not salt or len(salt) < 16:
+            raise ValueError("sel invalide (>= 16 octets requis)")
+        return hash_secret_raw(
+            secret=master_password.encode("utf-8"),
+            salt=salt,
+            time_cost=EncryptionService.ARGON2_TIME_COST,
+            memory_cost=EncryptionService.ARGON2_MEMORY_KIB,
+            parallelism=EncryptionService.ARGON2_PARALLELISM,
+            hash_len=EncryptionService.ARGON2_KEY_LENGTH,
+            type=Type.ID,
+        )
+
+    @staticmethod
+    def generate_vmk() -> bytes:
+        """Generer une Vault Master Key aleatoire (256 bits)."""
+        return secrets.token_bytes(EncryptionService.VMK_LENGTH)
+
+    @staticmethod
+    def _aesgcm_encrypt(key: bytes, plaintext: bytes) -> str:
+        """AES-256-GCM avec nonce frais. Retourne base64(nonce || ciphertext || tag)."""
+        nonce = secrets.token_bytes(EncryptionService.GCM_NONCE_LENGTH)
+        ct = AESGCM(key).encrypt(nonce, plaintext, None)  # ct = ciphertext || tag
+        return base64.b64encode(nonce + ct).decode("utf-8")
+
+    @staticmethod
+    def _aesgcm_decrypt(key: bytes, token: str) -> bytes:
+        """Inverse de _aesgcm_encrypt. Leve ValueError si le tag GCM est invalide."""
+        raw = base64.b64decode(token.encode("utf-8"))
+        nonce = raw[:EncryptionService.GCM_NONCE_LENGTH]
+        ct = raw[EncryptionService.GCM_NONCE_LENGTH:]
+        try:
+            return AESGCM(key).decrypt(nonce, ct, None)
+        except Exception:
+            # Ne JAMAIS divulguer la cle / le master password dans l'erreur
+            raise ValueError("Dechiffrement impossible (cle invalide ou donnees alterees)")
+
+    @staticmethod
+    def wrap_vmk(vmk: bytes, kek: bytes) -> str:
+        """Envelopper (chiffrer) la VMK avec la KEK."""
+        if len(vmk) != EncryptionService.VMK_LENGTH:
+            raise ValueError("VMK invalide")
+        return EncryptionService._aesgcm_encrypt(kek, vmk)
+
+    @staticmethod
+    def unwrap_vmk(wrapped: str, kek: bytes) -> bytes:
+        """Desenvelopper la VMK. Un mauvais master password (mauvaise KEK) leve ValueError
+        car le tag GCM rejette : aucune VMK corrompue n'est renvoyee silencieusement."""
+        vmk = EncryptionService._aesgcm_decrypt(kek, wrapped)
+        if len(vmk) != EncryptionService.VMK_LENGTH:
+            raise ValueError("VMK desenveloppee invalide")
+        return vmk
+
+    @staticmethod
+    def encrypt_entry(plaintext: str, vmk: bytes) -> str:
+        """Chiffrer une entree du coffre avec la VMK brute (AES-256-GCM, nonce unique)."""
+        if not plaintext:
+            raise ValueError("texte vide")
+        if len(vmk) != EncryptionService.VMK_LENGTH:
+            raise ValueError("VMK invalide")
+        return EncryptionService._aesgcm_encrypt(vmk, plaintext.encode("utf-8"))
+
+    @staticmethod
+    def decrypt_entry(token: str, vmk: bytes) -> str:
+        """Dechiffrer une entree du coffre avec la VMK."""
+        if len(vmk) != EncryptionService.VMK_LENGTH:
+            raise ValueError("VMK invalide")
+        return EncryptionService._aesgcm_decrypt(vmk, token).decode("utf-8")
     
     @staticmethod
     def encrypt_password(plaintext: str, user_key: str) -> str:
@@ -135,6 +228,9 @@ class EncryptionService:
     @staticmethod
     def generate_user_key(user_id: str, user_email: str) -> str:
         """
+        DEPRECATED (Lot 3 / C1) : clé dérivée de données PUBLIQUES (id+email) —
+        faille majeure, remplacée par derive_kek/VMK. Retiré en incrément (e).
+
         Générer une clé utilisateur unique basée sur son ID et email
         Cette clé servira pour chiffrer/déchiffrer ses mots de passe
         """

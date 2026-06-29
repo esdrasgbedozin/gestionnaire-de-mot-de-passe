@@ -13,6 +13,7 @@ psycopg2-binary==2.9.7
 
 # Sécurité et cryptographie
 cryptography==41.0.4
+argon2-cffi==23.1.0  # Argon2id (KEK zero-knowledge, Lot 3/C1)
 PyJWT==2.8.0  # Pour notre service JWT personnalisé
 pyotp==2.9.0  # Pour 2FA si implémenté plus tard
 
