@@ -24,4 +24,4 @@ ENV FLASK_APP=app.py
 ENV FLASK_ENV=development
 
 # Commande de démarrage avec script plus robuste
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--workers", "4", "--bind", "0.0.0.0:5000", "--timeout", "120", "--access-logfile", "-", "wsgi:app"]

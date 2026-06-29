@@ -177,4 +177,5 @@ if __name__ == '__main__':
     
     logger.info("🎉 Application prête à démarrer!")
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug_enabled = os.environ.get('FLASK_DEBUG', 'false').lower() == 'true'
+    app.run(host='0.0.0.0', port=5000, debug=debug_enabled)
