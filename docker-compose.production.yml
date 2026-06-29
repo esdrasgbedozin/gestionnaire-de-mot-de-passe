@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: prod_password_manager
       POSTGRES_USER: prod_admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-***REMOVED***}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required (see .env)}
     volumes:
       - prod_postgres_data:/var/lib/postgresql/data
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -28,14 +28,14 @@ services:
     environment:
       - FLASK_ENV=production
       - ENV=production
-      - DATABASE_URL=postgresql://prod_admin:${DB_PASSWORD:-***REMOVED***}@database:5432/prod_password_manager
-      - SECRET_KEY=${SECRET_KEY}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - DATABASE_URL=postgresql://prod_admin:${DB_PASSWORD:?DB_PASSWORD is required (see .env)}@database:5432/prod_password_manager
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required (see .env)}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:?JWT_SECRET_KEY is required (see .env)}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:?ENCRYPTION_KEY is required (see .env)}
       - BCRYPT_ROUNDS=14
       - MAX_LOGIN_ATTEMPTS=3
       - LOCKOUT_DURATION=1800
-      - EMERGENCY_RESET_KEY=${EMERGENCY_RESET_KEY}
+      - EMERGENCY_RESET_KEY=${EMERGENCY_RESET_KEY:?EMERGENCY_RESET_KEY is required (see .env)}
     depends_on:
       database:
         condition: service_healthy
