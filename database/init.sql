@@ -18,7 +18,10 @@ CREATE TABLE IF NOT EXISTS users (
     is_active BOOLEAN DEFAULT TRUE,
     failed_login_attempts INTEGER DEFAULT 0,
     locked_until TIMESTAMP WITH TIME ZONE,
-    last_login TIMESTAMP WITH TIME ZONE
+    last_login TIMESTAMP WITH TIME ZONE,
+    -- Crypto zero-knowledge (Lot 3 / C1)
+    kdf_salt BYTEA,
+    wrapped_vault_key TEXT
 );
 
 -- Index pour améliorer les performances
