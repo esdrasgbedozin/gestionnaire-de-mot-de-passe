@@ -2,7 +2,7 @@
 Tests de la refonte cryptographique zero-knowledge (Lot 3 / C1).
 
 Incrément (a) — schéma : les colonnes kdf_salt et wrapped_vault_key existent
-sur le modèle User, sont nullables par défaut, et persistent en base.
+sur le modèle User (non-nullable) et persistent en base.
 """
 
 import pytest
@@ -13,6 +13,7 @@ from app.models import User
 @pytest.fixture
 def app():
     app = create_app("testing")
+    app.session_key_store = SessionKeyStore(client=fakeredis.FakeStrictRedis())
     with app.app_context():
         db.create_all()
         yield app
@@ -26,19 +27,6 @@ class TestSchemaCrypto:
         """Le modèle User expose kdf_salt et wrapped_vault_key."""
         assert hasattr(User, "kdf_salt")
         assert hasattr(User, "wrapped_vault_key")
-
-    def test_crypto_columns_default_to_none(self, app):
-        """Un nouvel utilisateur a des colonnes crypto nulles tant qu'il n'est pas initialisé."""
-        with app.app_context():
-            user = User(
-                email="schema@example.com", password="SchemaPass123!", username="schema"
-            )
-            db.session.add(user)
-            db.session.commit()
-
-            reloaded = User.query.filter_by(email="schema@example.com").first()
-            assert reloaded.kdf_salt is None
-            assert reloaded.wrapped_vault_key is None
 
     def test_crypto_columns_persist(self, app):
         """Les colonnes crypto persistent les valeurs écrites (bytes pour le sel, texte pour la VMK enveloppée)."""
@@ -216,3 +204,113 @@ class TestVaultLockedResponse:
         resp = app.test_client().get('/__vault_locked_test__')
         assert resp.status_code == 423
         assert json.loads(resp.data)['code'] == 'vault_locked'
+
+
+import hashlib
+import secrets as _secrets
+from app.models import Password
+
+
+class TestC1Proofs:
+    """Les 4 preuves obligatoires que C1 (zero-knowledge at rest) est corrigée."""
+
+    MP = 'Master-Correct-Horse-9!'
+    SECRET = 'my-vault-entry-s3cret-value'
+
+    def _provision_user_with_entry(self, app):
+        """État réaliste : un User provisionné + une entrée chiffrée, persistés en base."""
+        with app.app_context():
+            salt, wrapped, vmk = E.provision_vault(self.MP)
+            user = User(email='proof@example.com', password=self.MP, username='proof')
+            user.kdf_salt = salt
+            user.wrapped_vault_key = wrapped
+            db.session.add(user)
+            db.session.commit()
+            ciphertext = E.encrypt_entry(self.SECRET, vmk)
+            entry = Password(
+                user_id=user.id, site_name='example.com',
+                username='alice', encrypted_password=ciphertext,
+            )
+            db.session.add(entry)
+            db.session.commit()
+            return user.id, entry.id
+
+    def test_a_decrypt_with_correct_master_password(self, app):
+        """(a) Avec le bon master password : entrée relue en clair."""
+        uid, eid = self._provision_user_with_entry(app)
+        with app.app_context():
+            user = User.query.get(uid)
+            entry = Password.query.get(eid)
+            vmk = E.unlock_vault(user.kdf_salt, user.wrapped_vault_key, self.MP)
+            assert E.decrypt_entry(entry.encrypted_password, vmk) == self.SECRET
+
+    def test_b_db_dump_cannot_decrypt_without_master_password(self, app):
+        """(b) PREUVE REINE : tout le contenu de la base ne déchiffre RIEN sans le master password."""
+        uid, eid = self._provision_user_with_entry(app)
+        with app.app_context():
+            user = User.query.get(uid)
+            entry = Password.query.get(eid)
+            # Le « dump » : exactement ce qui est stocké en base + données publiques
+            kdf_salt = user.kdf_salt
+            wrapped_vmk = user.wrapped_vault_key
+            ciphertext = entry.encrypted_password
+            user_id, email = str(user.id), user.email
+
+            # (1) Sans master password → pas de KEK → impossible de désenvelopper la VMK
+            with pytest.raises(ValueError):
+                E.unwrap_vmk(wrapped_vmk, _secrets.token_bytes(32))
+
+            # (2) L'ANCIENNE attaque SHA256(user_id:email) (données publiques) ne redonne PLUS la clé
+            legacy_key = hashlib.sha256(f"{user_id}:{email}".encode()).digest()
+            with pytest.raises(ValueError):
+                E.decrypt_entry(ciphertext, legacy_key)
+            with pytest.raises(ValueError):
+                E.unwrap_vmk(wrapped_vmk, legacy_key)
+
+            # (3) Le ciphertext ne contient pas le clair
+            assert self.SECRET not in ciphertext
+            assert self.SECRET.encode() not in base64.b64decode(ciphertext)
+
+            # (4) MAIS avec le master password, tout se déverrouille (contrôle positif)
+            vmk = E.unlock_vault(kdf_salt, wrapped_vmk, self.MP)
+            assert E.decrypt_entry(ciphertext, vmk) == self.SECRET
+
+    def test_c_email_change_keeps_decryptable(self, app):
+        """(c) Changement d'email → entrées toujours déchiffrables (email hors dérivation)."""
+        uid, eid = self._provision_user_with_entry(app)
+        with app.app_context():
+            user = User.query.get(uid)
+            user.email = 'brand-new-email@example.com'
+            db.session.commit()
+
+            user = User.query.get(uid)
+            entry = Password.query.get(eid)
+            vmk = E.unlock_vault(user.kdf_salt, user.wrapped_vault_key, self.MP)
+            assert E.decrypt_entry(entry.encrypted_password, vmk) == self.SECRET
+
+    def test_d_master_password_change_no_reencryption(self, app):
+        """(d) Changement de master password → entrées NON re-chiffrées (seule la VMK l'est)."""
+        uid, eid = self._provision_user_with_entry(app)
+        new_mp = 'A-Totally-New-Master-Pw-42!'
+        with app.app_context():
+            user = User.query.get(uid)
+            entry = Password.query.get(eid)
+            ct_before = entry.encrypted_password
+
+            # Déverrouiller avec l'ancien MP, puis re-wrap UNIQUEMENT la VMK
+            vmk = E.unlock_vault(user.kdf_salt, user.wrapped_vault_key, self.MP)
+            new_salt, new_wrapped = E.rewrap_vault(vmk, new_mp)
+            user.kdf_salt = new_salt
+            user.wrapped_vault_key = new_wrapped
+            db.session.commit()
+
+            entry = Password.query.get(eid)
+            # (1) l'entrée n'a PAS été re-chiffrée
+            assert entry.encrypted_password == ct_before
+            # (2) déchiffrable avec le NOUVEAU master password
+            user = User.query.get(uid)
+            vmk2 = E.unlock_vault(user.kdf_salt, user.wrapped_vault_key, new_mp)
+            assert E.decrypt_entry(entry.encrypted_password, vmk2) == self.SECRET
+            # (3) l'ANCIEN master password ne déverrouille plus
+            with pytest.raises(ValueError):
+                E.unlock_vault(user.kdf_salt, user.wrapped_vault_key, self.MP)

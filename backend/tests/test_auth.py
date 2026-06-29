@@ -12,6 +12,9 @@ import pytest
 import json
 from app_entry import create_app, db
 from app.models import User
+import fakeredis
+from app.services.session_key_store import SessionKeyStore
+from app.services.encryption_service import EncryptionService
 
 
 @pytest.fixture
@@ -26,6 +29,7 @@ def app():
             "WTF_CSRF_ENABLED": False,
         }
     )
+    app.session_key_store = SessionKeyStore(client=fakeredis.FakeStrictRedis())
 
     with app.app_context():
         db.create_all()
@@ -46,6 +50,9 @@ def sample_user(app):
         user = User(
             email="test@example.com", password="TestPassword123!", username="testuser"
         )
+        salt, wrapped, vmk = EncryptionService.provision_vault("TestPassword123!")
+        user.kdf_salt = salt
+        user.wrapped_vault_key = wrapped
         db.session.add(user)
         db.session.commit()
         return user

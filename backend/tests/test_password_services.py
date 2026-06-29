@@ -71,21 +71,6 @@ class TestEncryptionService:
             assert False, "Devrait lever une exception avec une mauvaise clé"
         except ValueError:
             pass  # Attendu
-    
-    def test_generate_user_key(self):
-        """Test de génération de clé utilisateur"""
-        user_id = "user123"
-        password = "userpassword"
-        
-        key1 = EncryptionService.generate_user_key(user_id, password)
-        key2 = EncryptionService.generate_user_key(user_id, password)
-        
-        # Même entrée = même clé
-        assert key1 == key2
-        
-        # Entrée différente = clé différente
-        key3 = EncryptionService.generate_user_key("user456", password)
-        assert key1 != key3
 
 
 class TestPasswordGenerator:

@@ -61,6 +61,9 @@ class Config:
     MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", 5))
     LOCKOUT_DURATION = int(os.environ.get("LOCKOUT_DURATION", 900))  # 15 minutes
 
+    # Durée de détention de la VMK en session (Redis), en secondes (Lot 3/C1)
+    VAULT_SESSION_TTL_SECONDS = int(os.environ.get("VAULT_SESSION_TTL_SECONDS", 3600))
+
     # Configuration CORS
     CORS_ORIGINS = [
         "http://localhost:3000",

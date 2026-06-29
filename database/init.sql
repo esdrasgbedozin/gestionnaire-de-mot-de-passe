@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
     locked_until TIMESTAMP WITH TIME ZONE,
     last_login TIMESTAMP WITH TIME ZONE,
     -- Crypto zero-knowledge (Lot 3 / C1)
-    kdf_salt BYTEA,
-    wrapped_vault_key TEXT
+    kdf_salt BYTEA NOT NULL,
+    wrapped_vault_key TEXT NOT NULL
 );
 
 -- Index pour améliorer les performances

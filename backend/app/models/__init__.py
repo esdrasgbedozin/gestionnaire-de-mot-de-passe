@@ -24,8 +24,8 @@ class User(db.Model):
     last_login = db.Column(db.DateTime, nullable=True)
 
     # Crypto zero-knowledge (Lot 3 / C1) — peuplées à l'inscription (incrément d)
-    kdf_salt = db.Column(db.LargeBinary(16), nullable=True)  # sel Argon2id unique/utilisateur (16 octets)
-    wrapped_vault_key = db.Column(db.Text, nullable=True)    # VMK chiffrée par la KEK (base64: nonce+tag+ciphertext)
+    kdf_salt = db.Column(db.LargeBinary(16), nullable=False)  # sel Argon2id unique/utilisateur (16 octets)
+    wrapped_vault_key = db.Column(db.Text, nullable=False)    # VMK chiffrée par la KEK (base64: nonce+tag+ciphertext)
     
     # Relation avec les mots de passe
     passwords = db.relationship('Password', backref='user', lazy=True, cascade='all, delete-orphan')

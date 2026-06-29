@@ -179,6 +179,8 @@ def get_passwords(current_user):
 @token_required
 def get_password(current_user, password_id):
     """Récupérer un mot de passe spécifique (déchiffré)"""
+    # VMK de session (hors try → coffre verrouillé = 423, pas 500)
+    vmk = current_app.session_key_store.get_required_vmk(str(current_user.id))
     try:
         user_id = current_user.id
         
@@ -193,11 +195,8 @@ def get_password(current_user, password_id):
         
         # Déchiffrer le mot de passe
         try:
-            # Utiliser l'email de l'utilisateur comme clé de base pour le chiffrement
-            user_key = EncryptionService.generate_user_key(str(user_id), current_user.email)
-            decrypted_password = EncryptionService.decrypt_password(
-                password_entry.encrypted_password, 
-                user_key
+            decrypted_password = EncryptionService.decrypt_entry(
+                password_entry.encrypted_password, vmk
             )
         except Exception as decrypt_error:
             log_audit_event('VIEW_PASSWORD', success=False, error_message=f"Decryption error: {str(decrypt_error)}", resource_id=password_id, user_id=user_id)
@@ -227,6 +226,8 @@ def get_password(current_user, password_id):
 @token_required
 def create_password(current_user):
     """Créer un nouveau mot de passe"""
+    # VMK de session (hors try → coffre verrouillé = 423, pas 500)
+    vmk = current_app.session_key_store.get_required_vmk(str(current_user.id))
     try:
         user_id = current_user.id
         data = get_validated_data()
@@ -242,9 +243,7 @@ def create_password(current_user):
         
         # Chiffrer le mot de passe
         try:
-            # Utiliser l'email de l'utilisateur comme clé de base pour le chiffrement
-            user_key = EncryptionService.generate_user_key(str(user_id), current_user.email)
-            encrypted_password = EncryptionService.encrypt_password(data['password'], user_key)
+            encrypted_password = EncryptionService.encrypt_entry(data['password'], vmk)
         except Exception as encrypt_error:
             log_audit_event('CREATE_PASSWORD', success=False, error_message=f"Encryption error: {str(encrypt_error)}", user_id=user_id)
             return jsonify({'error': 'Encryption error'}), 500
@@ -409,6 +408,8 @@ def evaluate_password_strength(current_user):
 @token_required
 def update_password(current_user, password_id):
     """Mettre à jour un mot de passe existant"""
+    # VMK de session (hors try → coffre verrouillé = 423, pas 500)
+    vmk = current_app.session_key_store.get_required_vmk(str(current_user.id))
     try:
         user_id = current_user.id
         data = get_validated_data()
@@ -454,9 +455,7 @@ def update_password(current_user, password_id):
         # Si le mot de passe est modifié, le chiffrer et calculer la force
         if 'password' in data:
             try:
-                # Utiliser l'email de l'utilisateur comme clé de base pour le chiffrement
-                user_key = EncryptionService.generate_user_key(str(user_id), current_user.email)
-                encrypted_password = EncryptionService.encrypt_password(data['password'], user_key)
+                encrypted_password = EncryptionService.encrypt_entry(data['password'], vmk)
                 password_obj.encrypted_password = encrypted_password
                 
                 strength_info = PasswordGenerator.evaluate_strength(data['password'])

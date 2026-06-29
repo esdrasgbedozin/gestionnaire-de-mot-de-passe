@@ -2,12 +2,13 @@
 Routes d'authentification
 """
 
-from flask import Blueprint, request, jsonify, g
+from flask import Blueprint, request, jsonify, g, current_app
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 import re
 
 from app.models import User, AuditLog
+from app.services.encryption_service import EncryptionService
 from extensions import db
 from ..services.jwt_service import JWTService, token_required, TokenBlacklist
 from validators import validate_user_data as xss_validate_user, SecurityValidator
@@ -125,13 +126,18 @@ def register():
             )
             return jsonify({'error': 'Email already registered'}), 409
         
-        # Créer le nouvel utilisateur
+        # Créer le nouvel utilisateur + provisionner son coffre (zero-knowledge, C1)
         new_user = User(email=email, password=password, username=username)
+        kdf_salt, wrapped_vmk, vmk = EncryptionService.provision_vault(password)
+        new_user.kdf_salt = kdf_salt
+        new_user.wrapped_vault_key = wrapped_vmk
         db.session.add(new_user)
         db.session.commit()
         
-        # Générer les tokens
+        # Générer les tokens + déposer la VMK en session (Redis)
         tokens = JWTService.generate_tokens(new_user)
+        current_app.session_key_store.store_vmk(
+            str(new_user.id), vmk, current_app.config['VAULT_SESSION_TTL_SECONDS'])
         
         # Log de succès
         log_audit_event(
@@ -263,8 +269,13 @@ def login():
         user.last_login = datetime.now(timezone.utc)
         db.session.commit()
         
-        # Générer les tokens
+        # Déverrouiller le coffre : dériver la KEK et récupérer la VMK (zero-knowledge, C1)
+        vmk = EncryptionService.unlock_vault(user.kdf_salt, user.wrapped_vault_key, password)
+
+        # Générer les tokens + déposer la VMK en session (Redis)
         tokens = JWTService.generate_tokens(user)
+        current_app.session_key_store.store_vmk(
+            str(user.id), vmk, current_app.config['VAULT_SESSION_TTL_SECONDS'])
         
         # Log de succès
         log_audit_event(
@@ -304,6 +315,9 @@ def logout(current_user_id):
         if token:
             # Ajouter le token à la blacklist
             TokenBlacklist.add_token(token)
+        
+        # Évincer la VMK de la session : le serveur ne peut plus déchiffrer (C1)
+        current_app.session_key_store.evict(str(current_user_id.id))
         
         # Log de déconnexion
         log_audit_event(

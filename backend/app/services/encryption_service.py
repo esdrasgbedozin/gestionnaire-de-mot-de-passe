@@ -4,7 +4,6 @@ Service de chiffrement AES pour les mots de passe
 
 import base64
 import os
-import hashlib
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -224,46 +223,40 @@ class EncryptionService:
             
         except Exception as e:
             raise ValueError(f"Erreur lors du déchiffrement: {str(e)}")
-    
+
+    # ==================================================================
+    # Choreographie du coffre (Lot 3 / C1)
+    # ==================================================================
+
     @staticmethod
-    def generate_user_key(user_id: str, user_email: str) -> str:
-        """
-        DEPRECATED (Lot 3 / C1) : clé dérivée de données PUBLIQUES (id+email) —
-        faille majeure, remplacée par derive_kek/VMK. Retiré en incrément (e).
+    def provision_vault(master_password: str):
+        """Inscription : genere sel + VMK, derive la KEK, enveloppe la VMK.
 
-        Générer une clé utilisateur unique basée sur son ID et email
-        Cette clé servira pour chiffrer/déchiffrer ses mots de passe
+        Retourne (kdf_salt: bytes(16), wrapped_vmk: str, vmk: bytes(32)).
+        La VMK est aleatoire et NE depend PAS de donnees publiques.
         """
-        # Utiliser l'email comme base, qui est unique et stable
-        combined = f"{user_id}:{user_email}"
-        return hashlib.sha256(combined.encode('utf-8')).hexdigest()
-    
+        salt = secrets.token_bytes(16)
+        vmk = EncryptionService.generate_vmk()
+        kek = EncryptionService.derive_kek(master_password, salt)
+        wrapped = EncryptionService.wrap_vmk(vmk, kek)
+        return salt, wrapped, vmk
+
     @staticmethod
-    def test_encryption():
-        """Test rapide du service de chiffrement"""
-        test_password = "MonMotDePasseSecretTest123!"
-        user_key = "test_user_key_123"
-        
-        try:
-            # Test chiffrement
-            encrypted = EncryptionService.encrypt_password(test_password, user_key)
-            print(f"✅ Chiffrement réussi: {encrypted[:50]}...")
-            
-            # Test déchiffrement
-            decrypted = EncryptionService.decrypt_password(encrypted, user_key)
-            print(f"✅ Déchiffrement réussi: {decrypted}")
-            
-            # Vérification
-            assert test_password == decrypted, "Erreur: le mot de passe déchiffré ne correspond pas"
-            print("✅ Test de chiffrement/déchiffrement réussi!")
-            
-            return True
-            
-        except Exception as e:
-            print(f"❌ Erreur lors du test: {e}")
-            return False
+    def unlock_vault(kdf_salt: bytes, wrapped_vmk: str, master_password: str) -> bytes:
+        """Login : derive la KEK depuis le master password et desenveloppe la VMK.
 
+        Leve ValueError si le master password est incorrect (tag GCM invalide).
+        """
+        kek = EncryptionService.derive_kek(master_password, kdf_salt)
+        return EncryptionService.unwrap_vmk(wrapped_vmk, kek)
 
-if __name__ == "__main__":
-    # Test du service
-    EncryptionService.test_encryption()
+    @staticmethod
+    def rewrap_vault(vmk: bytes, new_master_password: str):
+        """Changement de master password : nouveau sel + nouvelle KEK, re-enveloppe
+        la MEME VMK. Les entrees du coffre ne sont PAS re-chiffrees.
+
+        Retourne (new_kdf_salt: bytes(16), new_wrapped_vmk: str).
+        """
+        salt = secrets.token_bytes(16)
+        kek = EncryptionService.derive_kek(new_master_password, salt)
+        return salt, EncryptionService.wrap_vmk(vmk, kek)

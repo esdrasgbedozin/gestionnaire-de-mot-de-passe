@@ -31,6 +31,10 @@ def create_app(config_name=None):
     # d'utiliser une valeur par défaut non sécurisée.
     if not app.config.get('TESTING'):
         validate_required_secrets()
+
+    # Session key store (VMK en mémoire le temps de la session — Lot 3/C1)
+    from app.services.session_key_store import SessionKeyStore
+    app.session_key_store = SessionKeyStore()
     
     # Initialisation des extensions
     db.init_app(app)
