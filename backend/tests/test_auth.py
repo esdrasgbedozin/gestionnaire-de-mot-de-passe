@@ -14,6 +14,7 @@ from app_entry import create_app, db
 from app.models import User
 import fakeredis
 from app.services.session_key_store import SessionKeyStore
+from rate_limiter import RateLimiter
 from app.services.encryption_service import EncryptionService
 
 
@@ -31,6 +32,7 @@ def app():
     )
     app.redis = fakeredis.FakeStrictRedis()
     app.session_key_store = SessionKeyStore(client=app.redis)
+    app.rate_limiter = RateLimiter(app.redis)
 
     with app.app_context():
         db.create_all()
