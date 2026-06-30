@@ -21,9 +21,8 @@ Sérialisation : la VMK (bytes) est encodée en base64 pour le transport Redis.
 """
 
 import base64
-import os
 
-import redis
+from app.services.redis_client import make_redis_client
 
 _KEY_PREFIX = "vault:vmk:"
 
@@ -37,9 +36,7 @@ class SessionKeyStore:
 
     def __init__(self, client=None):
         # client injectable (fakeredis en test) ; sinon connexion réelle via REDIS_URL
-        self._client = client or redis.from_url(
-            os.environ.get("REDIS_URL", "redis://localhost:6379/0")
-        )
+        self._client = client or make_redis_client()
 
     @staticmethod
     def _key(session_id: str) -> str:

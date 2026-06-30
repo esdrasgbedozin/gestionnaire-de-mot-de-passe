@@ -32,9 +32,11 @@ def create_app(config_name=None):
     if not app.config.get('TESTING'):
         validate_required_secrets()
 
-    # Session key store (VMK en mémoire le temps de la session — Lot 3/C1)
+    # Client Redis partagé (état partagé entre workers — Lot 4/H2.0)
+    from app.services.redis_client import make_redis_client
     from app.services.session_key_store import SessionKeyStore
-    app.session_key_store = SessionKeyStore()
+    app.redis = make_redis_client()
+    app.session_key_store = SessionKeyStore(client=app.redis)
     
     # Initialisation des extensions
     db.init_app(app)

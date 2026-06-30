@@ -29,7 +29,8 @@ def app():
             "WTF_CSRF_ENABLED": False,
         }
     )
-    app.session_key_store = SessionKeyStore(client=fakeredis.FakeStrictRedis())
+    app.redis = fakeredis.FakeStrictRedis()
+    app.session_key_store = SessionKeyStore(client=app.redis)
 
     with app.app_context():
         db.create_all()

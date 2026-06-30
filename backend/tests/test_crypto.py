@@ -13,7 +13,8 @@ from app.models import User
 @pytest.fixture
 def app():
     app = create_app("testing")
-    app.session_key_store = SessionKeyStore(client=fakeredis.FakeStrictRedis())
+    app.redis = fakeredis.FakeStrictRedis()
+    app.session_key_store = SessionKeyStore(client=app.redis)
     with app.app_context():
         db.create_all()
         yield app
@@ -314,3 +315,11 @@ class TestC1Proofs:
             # (3) l'ANCIEN master password ne déverrouille plus
             with pytest.raises(ValueError):
                 E.unlock_vault(user.kdf_salt, user.wrapped_vault_key, self.MP)
+
+
+class TestSharedRedis:
+    """H2.0 : un client Redis unique partagé par l'app et ses services."""
+
+    def test_session_store_uses_shared_app_redis(self, app):
+        """Le session key store doit pointer sur le client Redis partagé app.redis."""
+        assert app.redis is app.session_key_store._client
