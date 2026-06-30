@@ -127,6 +127,10 @@ def register():
             )
             return jsonify({'error': 'Email already registered'}), 409
         
+        # Unicité du username (Q5)
+        if username and User.query.filter_by(username=username).first():
+            return jsonify({'error': 'Username already taken'}), 409
+        
         # Créer le nouvel utilisateur + provisionner son coffre (zero-knowledge, C1)
         new_user = User(email=email, username=username)
         kdf_salt, wrapped_vmk, vmk = EncryptionService.provision_vault(password)

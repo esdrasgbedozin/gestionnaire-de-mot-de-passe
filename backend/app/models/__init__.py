@@ -14,7 +14,7 @@ class User(db.Model):
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    username = db.Column(db.String(100), nullable=True, index=True)  # Nom d'utilisateur optionnel
+    username = db.Column(db.String(100), nullable=True, unique=True, index=True)  # Nom d'utilisateur optionnel
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True, nullable=False)

@@ -97,9 +97,6 @@ class TestUserRegistration:
         response_data = json.loads(response.data)
         assert "already registered" in response_data["error"].lower()
 
-    @pytest.mark.xfail(
-        reason="Username non unique : doublon accepté (201 au lieu de 409) — à corriger au Lot 4"
-    )
     def test_register_duplicate_username(self, client, sample_user):
         """Test enregistrement avec username déjà existant"""
         data = {
