@@ -180,7 +180,7 @@ def get_passwords(current_user):
 def get_password(current_user, password_id):
     """Récupérer un mot de passe spécifique (déchiffré)"""
     # VMK de session (hors try → coffre verrouillé = 423, pas 500)
-    vmk = current_app.session_key_store.get_required_vmk(str(current_user.id))
+    vmk = current_app.session_key_store.get_required_vmk(g.session_id)
     try:
         user_id = current_user.id
         
@@ -227,7 +227,7 @@ def get_password(current_user, password_id):
 def create_password(current_user):
     """Créer un nouveau mot de passe"""
     # VMK de session (hors try → coffre verrouillé = 423, pas 500)
-    vmk = current_app.session_key_store.get_required_vmk(str(current_user.id))
+    vmk = current_app.session_key_store.get_required_vmk(g.session_id)
     try:
         user_id = current_user.id
         data = get_validated_data()
@@ -409,7 +409,7 @@ def evaluate_password_strength(current_user):
 def update_password(current_user, password_id):
     """Mettre à jour un mot de passe existant"""
     # VMK de session (hors try → coffre verrouillé = 423, pas 500)
-    vmk = current_app.session_key_store.get_required_vmk(str(current_user.id))
+    vmk = current_app.session_key_store.get_required_vmk(g.session_id)
     try:
         user_id = current_user.id
         data = get_validated_data()

@@ -1,59 +1,89 @@
 """
-Session key store (Lot 3 / C1) — détention de la VMK pendant une session.
+Session key store (Lot 3/C1 + Lot 4/H2.2) — la session détient la VMK.
 
-La VMK (Vault Master Key) est dérivée UNE seule fois au login (déverrouillage
-de la VMK enveloppée via la KEK Argon2id), puis conservée ici, indexée par la
-session (jti du token). Les requêtes suivantes la relisent depuis Redis — il n'y
-a JAMAIS de re-dérivation Argon2id par requête.
+Modèle :
+- Clé Redis `session:{session_id}` → détient la VMK de la session.
+- La VMK est ANCRÉE sur cette clé : elle n'est JAMAIS recopiée/déplacée
+  (la rotation des refresh tokens ne déplace pas la VMK — cf. H2.4).
+- TTL : inactivité glissante (ré-armée à chaque requête via `touch`) bornée par
+  un plafond absolu. La valeur encode `base64(vmk)|deadline_absolu_epoch`.
+- Existence de la clé = session active. Sa suppression (logout / lockout / rejeu)
+  révoque la session : la VMK disparaît et toute requête authentifiée est refusée.
 
-Garanties :
-- TTL = durée de vie du token → la VMK expire automatiquement.
-- Éviction explicite au logout.
-- Si la VMK est absente (expiration, logout, Redis vidé/redémarré) →
-  VaultLockedError, que l'application traduit en réponse 423 « coffre verrouillé »
-  (jamais un 500).
-
-Persistance disque : Redis est configuré SANS RDB ni AOF (cf. docker-compose,
-`--save "" --appendonly no`) → la VMK ne touche jamais le disque ; elle ne vit
-qu'en mémoire le temps du TTL. C'est le compromis « zero-knowledge at rest ».
-
-Sérialisation : la VMK (bytes) est encodée en base64 pour le transport Redis.
+Persistance disque : Redis est configuré SANS RDB ni AOF (cf. docker-compose) →
+la VMK ne touche jamais le disque. Sérialisation : VMK en base64.
 """
 
 import base64
+import time
 
 from app.services.redis_client import make_redis_client
 
-_KEY_PREFIX = "vault:vmk:"
+_SESSION_PREFIX = "session:"
 
 
 class VaultLockedError(Exception):
-    """Levée quand la VMK n'est pas/plus disponible pour la session courante."""
+    """Levée quand la session/VMK n'est pas/plus disponible (→ 423)."""
 
 
 class SessionKeyStore:
-    """Stocke la VMK d'une session dans Redis (en mémoire, TTL court)."""
+    """Détient la VMK d'une session dans Redis (en mémoire, TTL glissant + plafond)."""
 
     def __init__(self, client=None):
-        # client injectable (fakeredis en test) ; sinon connexion réelle via REDIS_URL
         self._client = client or make_redis_client()
 
     @staticmethod
     def _key(session_id: str) -> str:
-        return _KEY_PREFIX + session_id
+        return _SESSION_PREFIX + session_id
 
-    def store_vmk(self, session_id: str, vmk: bytes, ttl_seconds: int) -> None:
-        """Stocker la VMK pour la session, avec expiration = TTL du token."""
+    def store_session(
+        self, session_id: str, vmk: bytes, idle_ttl: int, absolute_ttl: int
+    ) -> None:
+        """Créer la session : ancre la VMK, fixe le plafond absolu, arme le TTL d'inactivité."""
         if not session_id:
             raise ValueError("session_id requis")
-        if ttl_seconds <= 0:
-            raise ValueError("ttl_seconds doit être positif")
-        self._client.setex(self._key(session_id), ttl_seconds, base64.b64encode(vmk))
+        if idle_ttl <= 0 or absolute_ttl <= 0:
+            raise ValueError("ttl doit être positif")
+        deadline = int(time.time()) + absolute_ttl
+        value = base64.b64encode(vmk).decode("utf-8") + "|" + str(deadline)
+        self._client.setex(self._key(session_id), min(idle_ttl, absolute_ttl), value)
+
+    def _get_raw(self, session_id: str):
+        """Retourne (vmk_b64, deadline) ou None. Supprime la clé si le plafond absolu est dépassé."""
+        raw = self._client.get(self._key(session_id))
+        if not raw:
+            return None
+        text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else raw
+        vmk_b64, _, deadline_s = text.partition("|")
+        deadline = int(deadline_s)
+        if time.time() > deadline:
+            self._client.delete(self._key(session_id))  # plafond absolu atteint
+            return None
+        return vmk_b64, deadline
+
+    def session_exists(self, session_id: str) -> bool:
+        """Vraie ssi la session est encore active (clé présente et plafond non dépassé)."""
+        if not session_id:
+            return False
+        return self._get_raw(session_id) is not None
+
+    def touch(self, session_id: str, idle_ttl: int) -> bool:
+        """Ré-arme le TTL d'inactivité, borné par le plafond absolu. False si session morte."""
+        raw = self._get_raw(session_id)
+        if raw is None:
+            return False
+        _, deadline = raw
+        remaining = deadline - int(time.time())
+        if remaining <= 0:
+            self._client.delete(self._key(session_id))
+            return False
+        self._client.expire(self._key(session_id), min(idle_ttl, remaining))
+        return True
 
     def get_vmk(self, session_id: str):
-        """Relire la VMK depuis Redis (aucune dérivation Argon2id). None si absente."""
-        raw = self._client.get(self._key(session_id))
-        return base64.b64decode(raw) if raw else None
+        """Relire la VMK (aucune dérivation Argon2id). None si session absente/expirée."""
+        raw = self._get_raw(session_id)
+        return base64.b64decode(raw[0]) if raw else None
 
     def get_required_vmk(self, session_id: str) -> bytes:
         """Comme get_vmk mais lève VaultLockedError si absente (→ 423, pas 500)."""
@@ -65,5 +95,6 @@ class SessionKeyStore:
         return vmk
 
     def evict(self, session_id: str) -> None:
-        """Supprimer la VMK (logout). Le serveur redevient incapable de déchiffrer."""
-        self._client.delete(self._key(session_id))
+        """Révoquer la session : supprime la clé → VMK évincée, requêtes refusées."""
+        if session_id:
+            self._client.delete(self._key(session_id))

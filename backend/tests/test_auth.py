@@ -295,3 +295,67 @@ class TestAccountLocking:
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+import jwt as pyjwt
+
+JWT_TEST_SECRET = "test-secret-key-for-testing-only"
+
+
+def _login(client):
+    r = client.post(
+        "/api/auth/login",
+        data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+        content_type="application/json",
+    )
+    return json.loads(r.data)["tokens"]["access_token"]
+
+
+class TestSessionModel:
+    """H2.2 : session stable, sid sur les tokens, VMK ancrée, révocation par session."""
+
+    def test_authenticated_request_refused_when_session_deleted(self, client, sample_user, app):
+        """CONDITION Q1 : access token encore valide MAIS session supprimée → refus."""
+        access = _login(client)
+        sid = pyjwt.decode(access, JWT_TEST_SECRET, algorithms=["HS256"])["sid"]
+
+        # La requête authentifiée passe tant que la session existe
+        ok = client.get("/api/passwords/", headers={"Authorization": f"Bearer {access}"})
+        assert ok.status_code == 200
+
+        # On supprime la session (révocation) — le token JWT reste pourtant valide
+        app.redis.delete(f"session:{sid}")
+
+        refused = client.get("/api/passwords/", headers={"Authorization": f"Bearer {access}"})
+        assert refused.status_code in (401, 423)
+
+    def test_vmk_key_stable_during_session(self, client, sample_user, app):
+        """La VMK est ancrée sur session:{session_id} — jamais recopiée pendant la session."""
+        access = _login(client)
+        keys_before = sorted(k for k in app.redis.keys("session:*"))
+        assert len(keys_before) == 1
+
+        # Plusieurs requêtes authentifiées ne doivent PAS créer/déplacer la clé VMK
+        for _ in range(3):
+            client.get("/api/passwords/", headers={"Authorization": f"Bearer {access}"})
+        keys_after = sorted(k for k in app.redis.keys("session:*"))
+        assert keys_after == keys_before  # même clé unique, inchangée
+
+    def test_e2e_login_create_get_password(self, client, sample_user):
+        """Bout en bout : login → create → get (VMK lue par sid, pas de 423 mal câblé)."""
+        access = _login(client)
+        h = {"Authorization": f"Bearer {access}"}
+        secret = "S3cret-Vault-Value!"
+
+        cr = client.post(
+            "/api/passwords/",
+            headers=h,
+            data=json.dumps({"site_name": "example.com", "username": "alice", "password": secret}),
+            content_type="application/json",
+        )
+        assert cr.status_code == 201
+        pid = json.loads(cr.data)["password"]["id"]
+
+        gr = client.get(f"/api/passwords/{pid}", headers=h)
+        assert gr.status_code == 200
+        assert json.loads(gr.data)["password"] == secret

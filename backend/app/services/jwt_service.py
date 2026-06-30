@@ -2,168 +2,145 @@
 Service de gestion des tokens JWT
 """
 
+import uuid
 import jwt
 from datetime import datetime, timedelta
-from flask import current_app
+from flask import current_app, request, jsonify, g
 from functools import wraps
-from flask import request, jsonify
 
 
 class JWTService:
     """Service pour gérer les tokens JWT"""
-    
+
     @staticmethod
-    def generate_tokens(user):
-        """Générer les tokens d'accès et de rafraîchissement"""
+    def generate_tokens(user, session_id):
+        """Générer access + refresh tokens, rattachés à une session stable (sid)."""
         now = datetime.utcnow()
-        
-        # Token d'accès (15 minutes)
+
         access_payload = {
-            'user_id': str(user.id),
-            'email': user.email,
-            'iat': now,
-            'exp': now + timedelta(minutes=15),
-            'type': 'access'
+            "user_id": str(user.id),
+            "email": user.email,
+            "iat": now,
+            "exp": now + timedelta(minutes=15),
+            "type": "access",
+            "sid": session_id,
+            "jti": str(uuid.uuid4()),
         }
-        
-        # Token de rafraîchissement (7 jours)
+
         refresh_payload = {
-            'user_id': str(user.id),
-            'email': user.email,
-            'iat': now,
-            'exp': now + timedelta(days=7),
-            'type': 'refresh'
+            "user_id": str(user.id),
+            "email": user.email,
+            "iat": now,
+            "exp": now + timedelta(days=7),
+            "type": "refresh",
+            "sid": session_id,
+            "jti": str(uuid.uuid4()),
         }
-        
+
         access_token = jwt.encode(
-            access_payload,
-            current_app.config['JWT_SECRET_KEY'],
-            algorithm='HS256'
+            access_payload, current_app.config["JWT_SECRET_KEY"], algorithm="HS256"
         )
-        
         refresh_token = jwt.encode(
-            refresh_payload,
-            current_app.config['JWT_SECRET_KEY'],
-            algorithm='HS256'
+            refresh_payload, current_app.config["JWT_SECRET_KEY"], algorithm="HS256"
         )
-        
+
         return {
-            'access_token': access_token,
-            'refresh_token': refresh_token,
-            'token_type': 'Bearer',
-            'expires_in': 900,  # 15 minutes en secondes
-            'expires_at': (now + timedelta(minutes=15)).isoformat()
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "Bearer",
+            "expires_in": 900,  # 15 minutes
+            "expires_at": (now + timedelta(minutes=15)).isoformat(),
         }
-    
+
     @staticmethod
     def decode_token(token):
-        """Décoder et valider un token"""
+        """Décoder et valider un token (algorithme épinglé HS256)."""
         try:
             payload = jwt.decode(
-                token,
-                current_app.config['JWT_SECRET_KEY'],
-                algorithms=['HS256']
+                token, current_app.config["JWT_SECRET_KEY"], algorithms=["HS256"]
             )
             return payload, None
         except jwt.ExpiredSignatureError:
-            return None, 'Token expired'
+            return None, "Token expired"
         except jwt.InvalidTokenError as e:
-            return None, f'Invalid token: {str(e)}'
-    
+            return None, f"Invalid token: {str(e)}"
+
     @staticmethod
     def refresh_access_token(refresh_token):
-        """Générer un nouveau token d'accès à partir du refresh token"""
+        """Générer un nouveau token d'accès à partir du refresh token.
+
+        Le nouveau access token conserve le même `sid` (session stable).
+        La rotation/détection de rejeu est ajoutée en H2.4.
+        """
         payload, error = JWTService.decode_token(refresh_token)
-        
         if error:
             return None, error
-            
-        if payload.get('type') != 'refresh':
-            return None, 'Invalid token type'
-        
-        # Créer un nouveau token d'accès
+        if payload.get("type") != "refresh":
+            return None, "Invalid token type"
+
         now = datetime.utcnow()
         access_payload = {
-            'user_id': payload['user_id'],
-            'email': payload['email'],
-            'iat': now,
-            'exp': now + timedelta(minutes=15),
-            'type': 'access'
+            "user_id": payload["user_id"],
+            "email": payload["email"],
+            "iat": now,
+            "exp": now + timedelta(minutes=15),
+            "type": "access",
+            "sid": payload.get("sid"),
+            "jti": str(uuid.uuid4()),
         }
-        
         access_token = jwt.encode(
-            access_payload,
-            current_app.config['JWT_SECRET_KEY'],
-            algorithm='HS256'
+            access_payload, current_app.config["JWT_SECRET_KEY"], algorithm="HS256"
         )
-        
         return {
-            'access_token': access_token,
-            'token_type': 'Bearer',
-            'expires_in': 900,  # 15 minutes
-            'expires_at': (now + timedelta(minutes=15)).isoformat()
+            "access_token": access_token,
+            "token_type": "Bearer",
+            "expires_in": 900,
+            "expires_at": (now + timedelta(minutes=15)).isoformat(),
         }, None
 
 
 def token_required(f):
-    """Décorateur pour protéger les routes avec JWT"""
+    """Décorateur protégeant les routes : token valide ET session encore active.
+
+    À CHAQUE requête authentifiée, on vérifie que `session:{sid}` existe encore
+    dans Redis (révocation par session). Un token JWT non expiré dont la session
+    a été supprimée est donc refusé (401). C'est ce qui rend toute blacklist de
+    tokens superflue.
+    """
+
     @wraps(f)
     def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization")
         token = None
-        auth_header = request.headers.get('Authorization')
-        
         if auth_header:
             try:
-                # Format: "Bearer <token>"
-                token = auth_header.split(' ')[1]
+                token = auth_header.split(" ")[1]
             except IndexError:
-                return jsonify({'error': 'Invalid authorization header format'}), 401
-        
+                return jsonify({"error": "Invalid authorization header format"}), 401
         if not token:
-            return jsonify({'error': 'Token is missing'}), 401
-        
-        # Vérifier si le token est blacklisté
-        if TokenBlacklist.is_blacklisted(token):
-            return jsonify({'error': 'Token has been revoked'}), 401
-        
+            return jsonify({"error": "Token is missing"}), 401
+
         payload, error = JWTService.decode_token(token)
-        
         if error:
-            return jsonify({'error': error}), 401
-        
-        if payload.get('type') != 'access':
-            return jsonify({'error': 'Invalid token type'}), 401
-        
-        # Récupérer l'utilisateur complet
+            return jsonify({"error": error}), 401
+        if payload.get("type") != "access":
+            return jsonify({"error": "Invalid token type"}), 401
+
+        # Pivot du modèle de révocation : la session doit encore exister.
+        sid = payload.get("sid")
+        store = current_app.session_key_store
+        if not sid or not store.session_exists(sid):
+            return jsonify({"error": "Session expired or revoked"}), 401
+        # Inactivité glissante : ré-armer le TTL à chaque requête.
+        store.touch(sid, current_app.config["VAULT_SESSION_IDLE_TTL_SECONDS"])
+        g.session_id = sid
+
         from app.models import User
-        current_user = User.query.get(payload['user_id'])
-        
+
+        current_user = User.query.get(payload["user_id"])
         if not current_user:
-            return jsonify({'error': 'User not found'}), 401
-        
+            return jsonify({"error": "User not found"}), 401
+
         return f(current_user, *args, **kwargs)
-    
+
     return decorated
-
-
-# Service de blacklist des tokens (pour logout)
-class TokenBlacklist:
-    """Service simple de blacklist des tokens (en mémoire)"""
-    
-    _blacklisted_tokens = set()
-    
-    @classmethod
-    def add_token(cls, token):
-        """Ajouter un token à la blacklist"""
-        cls._blacklisted_tokens.add(token)
-    
-    @classmethod
-    def is_blacklisted(cls, token):
-        """Vérifier si un token est blacklisté"""
-        return token in cls._blacklisted_tokens
-    
-    @classmethod
-    def clear_expired(cls):
-        """Nettoyer les tokens expirés (à implémenter avec Redis en production)"""
-        # En production, utiliser Redis avec TTL automatique
-        pass

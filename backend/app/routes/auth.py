@@ -7,10 +7,11 @@ from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, timezone
 import re
 
+import uuid
 from app.models import User, AuditLog
 from app.services.encryption_service import EncryptionService
 from extensions import db
-from ..services.jwt_service import JWTService, token_required, TokenBlacklist
+from ..services.jwt_service import JWTService, token_required
 from validators import validate_user_data as xss_validate_user, SecurityValidator
 from rate_limiter import rate_limit_middleware
 
@@ -134,10 +135,13 @@ def register():
         db.session.add(new_user)
         db.session.commit()
         
-        # Générer les tokens + déposer la VMK en session (Redis)
-        tokens = JWTService.generate_tokens(new_user)
-        current_app.session_key_store.store_vmk(
-            str(new_user.id), vmk, current_app.config['VAULT_SESSION_TTL_SECONDS'])
+        # Créer la session stable + ancrer la VMK (jamais recopiée)
+        session_id = str(uuid.uuid4())
+        current_app.session_key_store.store_session(
+            session_id, vmk,
+            current_app.config['VAULT_SESSION_IDLE_TTL_SECONDS'],
+            current_app.config['VAULT_SESSION_ABSOLUTE_TTL_SECONDS'])
+        tokens = JWTService.generate_tokens(new_user, session_id)
         
         # Log de succès
         log_audit_event(
@@ -272,10 +276,13 @@ def login():
         # Déverrouiller le coffre : dériver la KEK et récupérer la VMK (zero-knowledge, C1)
         vmk = EncryptionService.unlock_vault(user.kdf_salt, user.wrapped_vault_key, password)
 
-        # Générer les tokens + déposer la VMK en session (Redis)
-        tokens = JWTService.generate_tokens(user)
-        current_app.session_key_store.store_vmk(
-            str(user.id), vmk, current_app.config['VAULT_SESSION_TTL_SECONDS'])
+        # Créer la session stable + ancrer la VMK (jamais recopiée)
+        session_id = str(uuid.uuid4())
+        current_app.session_key_store.store_session(
+            session_id, vmk,
+            current_app.config['VAULT_SESSION_IDLE_TTL_SECONDS'],
+            current_app.config['VAULT_SESSION_ABSOLUTE_TTL_SECONDS'])
+        tokens = JWTService.generate_tokens(user, session_id)
         
         # Log de succès
         log_audit_event(
@@ -309,15 +316,8 @@ def login():
 def logout(current_user_id):
     """Route de déconnexion"""
     try:
-        auth_header = request.headers.get('Authorization')
-        token = auth_header.split(' ')[1] if auth_header else None
-        
-        if token:
-            # Ajouter le token à la blacklist
-            TokenBlacklist.add_token(token)
-        
-        # Évincer la VMK de la session : le serveur ne peut plus déchiffrer (C1)
-        current_app.session_key_store.evict(str(current_user_id.id))
+        # Révoquer la session : supprime session:{sid} → VMK évincée + famille morte
+        current_app.session_key_store.evict(g.session_id)
         
         # Log de déconnexion
         log_audit_event(
@@ -356,9 +356,12 @@ def refresh():
         if not refresh_token:
             return jsonify({'error': 'Refresh token is required'}), 400
         
-        # Vérifier si le token est blacklisté
-        if TokenBlacklist.is_blacklisted(refresh_token):
-            return jsonify({'error': 'Token has been revoked'}), 401
+        # La session doit encore exister (révocation par session)
+        payload, decode_err = JWTService.decode_token(refresh_token)
+        if decode_err:
+            return jsonify({'error': decode_err}), 401
+        if not current_app.session_key_store.session_exists(payload.get('sid')):
+            return jsonify({'error': 'Session expired or revoked'}), 401
         
         # Générer un nouveau token d'accès
         new_tokens, error = JWTService.refresh_access_token(refresh_token)

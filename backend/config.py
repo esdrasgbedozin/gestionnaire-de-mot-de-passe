@@ -63,6 +63,9 @@ class Config:
 
     # Durée de détention de la VMK en session (Redis), en secondes (Lot 3/C1)
     VAULT_SESSION_TTL_SECONDS = int(os.environ.get("VAULT_SESSION_TTL_SECONDS", 3600))
+    # TTL de session (Lot 4/H2.2) : inactivité glissante + plafond absolu
+    VAULT_SESSION_IDLE_TTL_SECONDS = int(os.environ.get("VAULT_SESSION_IDLE_TTL_SECONDS", 900))  # 15 min
+    VAULT_SESSION_ABSOLUTE_TTL_SECONDS = int(os.environ.get("VAULT_SESSION_ABSOLUTE_TTL_SECONDS", 604800))  # 7 jours
 
     # Configuration CORS
     CORS_ORIGINS = [

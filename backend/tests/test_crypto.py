@@ -134,19 +134,19 @@ class TestSessionKeyStore:
     def test_store_get_roundtrip(self):
         store = _store()
         vmk = E.generate_vmk()
-        store.store_vmk('sess-1', vmk, 60)
+        store.store_session('sess-1', vmk, 60, 60)
         assert store.get_vmk('sess-1') == vmk
 
     def test_ttl_is_applied(self):
         store = _store()
-        store.store_vmk('sess-ttl', E.generate_vmk(), 60)
-        ttl = store._client.ttl('vault:vmk:sess-ttl')
+        store.store_session('sess-ttl', E.generate_vmk(), 60, 60)
+        ttl = store._client.ttl('session:sess-ttl')
         assert 0 < ttl <= 60
 
     def test_evict_removes_vmk(self):
         """Logout → VMK évincée → serveur incapable de déchiffrer."""
         store = _store()
-        store.store_vmk('sess-2', E.generate_vmk(), 60)
+        store.store_session('sess-2', E.generate_vmk(), 60, 60)
         store.evict('sess-2')
         assert store.get_vmk('sess-2') is None
 
@@ -158,8 +158,8 @@ class TestSessionKeyStore:
     def test_expiry_then_locked(self):
         """Expiration TTL (simulée) → VMK absente → VaultLockedError (→ 423, pas 500)."""
         store = _store()
-        store.store_vmk('sess-exp', E.generate_vmk(), 1)
-        store._client.delete('vault:vmk:sess-exp')  # équivalent à l'expiration du TTL
+        store.store_session('sess-exp', E.generate_vmk(), 1, 1)
+        store._client.delete('session:sess-exp')  # équivalent à l'expiration du TTL
         with pytest.raises(VaultLockedError):
             store.get_required_vmk('sess-exp')
 
@@ -169,14 +169,14 @@ class TestSessionKeyStore:
         worker_a = _store(server)
         worker_b = _store(server)
         vmk = E.generate_vmk()
-        worker_a.store_vmk('shared', vmk, 60)
+        worker_a.store_session('shared', vmk, 60, 60)
         assert worker_b.get_vmk('shared') == vmk
 
     def test_no_argon2_re_derivation_on_retrieval(self, monkeypatch):
         """PREUVE : la récupération de la VMK ne re-dérive JAMAIS la KEK (Argon2id)."""
         store = _store()
         vmk = E.generate_vmk()
-        store.store_vmk('perf', vmk, 60)
+        store.store_session('perf', vmk, 60, 60)
 
         calls = {'n': 0}
         real = E.derive_kek
