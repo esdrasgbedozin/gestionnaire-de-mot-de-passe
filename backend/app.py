@@ -8,7 +8,7 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from config import config, validate_required_secrets
-from extensions import db, bcrypt
+from extensions import db
 from rate_limiter import setup_rate_limiting
 from security_headers import setup_security_headers
 
@@ -42,7 +42,6 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
-    bcrypt.init_app(app)
     
     # Configuration CORS
     CORS(app, 

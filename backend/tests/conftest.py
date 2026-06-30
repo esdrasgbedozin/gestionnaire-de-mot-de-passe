@@ -13,6 +13,14 @@ import importlib.util
 import os
 import sys
 
+# Paramètres Argon2id RÉDUITS pour la vitesse des tests UNIQUEMENT.
+# Cloisonnement : ces valeurs ne sont posées que par ce conftest (chargé par
+# pytest seulement) via setdefault. La production ne définit JAMAIS ces variables
+# (cf. docker-compose*.yml) → EncryptionService retombe sur ses défauts 192 MiB.
+os.environ.setdefault("ARGON2_MEMORY_KIB", "8192")
+os.environ.setdefault("ARGON2_TIME_COST", "1")
+os.environ.setdefault("ARGON2_PARALLELISM", "1")
+
 _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _BACKEND_DIR not in sys.path:
     sys.path.insert(0, _BACKEND_DIR)

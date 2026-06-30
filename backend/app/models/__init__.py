@@ -4,7 +4,7 @@ Modèles de données pour le gestionnaire de mots de passe
 
 from datetime import datetime
 import uuid
-from extensions import db, bcrypt
+from extensions import db
 
 
 class User(db.Model):
@@ -15,7 +15,6 @@ class User(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = db.Column(db.String(255), unique=True, nullable=False, index=True)
     username = db.Column(db.String(100), nullable=True, index=True)  # Nom d'utilisateur optionnel
-    password_hash = db.Column(db.String(128), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
@@ -29,15 +28,6 @@ class User(db.Model):
     
     # Relation avec les mots de passe
     passwords = db.relationship('Password', backref='user', lazy=True, cascade='all, delete-orphan')
-    
-    def __init__(self, email, password, username=None):
-        self.email = email
-        self.username = username
-        self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
-    
-    def check_password(self, password):
-        """Vérifier le mot de passe"""
-        return bcrypt.check_password_hash(self.password_hash, password)
     
     def to_dict(self):
         """Convertir en dictionnaire (sans le mot de passe)"""

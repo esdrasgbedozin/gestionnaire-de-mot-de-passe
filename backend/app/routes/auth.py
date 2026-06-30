@@ -128,7 +128,7 @@ def register():
             return jsonify({'error': 'Email already registered'}), 409
         
         # Créer le nouvel utilisateur + provisionner son coffre (zero-knowledge, C1)
-        new_user = User(email=email, password=password, username=username)
+        new_user = User(email=email, username=username)
         kdf_salt, wrapped_vmk, vmk = EncryptionService.provision_vault(password)
         new_user.kdf_salt = kdf_salt
         new_user.wrapped_vault_key = wrapped_vmk
@@ -201,6 +201,8 @@ def login():
         user = User.query.filter_by(email=email).first()
         
         if not user:
+            # Anti-énumération par timing (Q3) : payer le coût Argon2id même sans compte
+            EncryptionService.waste_argon2()
             log_audit_event(
                 user_id=None,
                 action='LOGIN_FAILED',
@@ -223,9 +225,11 @@ def login():
             )
             return jsonify({'error': 'Account is disabled'}), 401
         
-        # Vérifier le verrouillage du compte
-        current_time = datetime.now(timezone.utc)
-        if user.locked_until and current_time < user.locked_until:
+        # Vérifier le verrouillage du compte (comparaison timezone-safe — Bug A)
+        locked_until = user.locked_until
+        if locked_until is not None and locked_until.tzinfo is None:
+            locked_until = locked_until.replace(tzinfo=timezone.utc)
+        if locked_until is not None and datetime.now(timezone.utc) < locked_until:
             log_audit_event(
                 user_id=user.id,
                 action='LOGIN_FAILED',
@@ -236,27 +240,20 @@ def login():
             )
             return jsonify({'error': 'Account is temporarily locked'}), 401
         
-        # Vérifier le mot de passe
+        # Authentification = déballage de la VMK : l'identité est prouvée par un tag
+        # GCM valide (plus de hash bcrypt séparé) — Lot 4/H2.3, décision 1.
         try:
-            password_check = user.check_password(password)
-        except Exception as check_err:
-            print(f"Error checking password: {str(check_err)}")
-            return jsonify({'error': 'Authentication error'}), 500
-            
-        if not password_check:
-            # Incrémenter le compteur d'échecs
+            vmk = EncryptionService.unlock_vault(
+                user.kdf_salt, user.wrapped_vault_key, password)
+        except ValueError:
+            # Mauvais master password → échec d'auth : compteur + verrouillage
             try:
                 user.failed_login_attempts += 1
-                
-                # Verrouiller après 5 tentatives
                 if user.failed_login_attempts >= 5:
                     user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=30)
-                
                 db.session.commit()
-            except Exception as db_err:
-                print(f"Error updating failed login attempts: {str(db_err)}")
+            except Exception:
                 db.session.rollback()
-            
             log_audit_event(
                 user_id=user.id,
                 action='LOGIN_FAILED',
@@ -266,15 +263,12 @@ def login():
                 error_message='Invalid password'
             )
             return jsonify({'error': 'Invalid credentials'}), 401
-        
-        # Connexion réussie - réinitialiser les compteurs
+
+        # Succès : réinitialiser les compteurs
         user.failed_login_attempts = 0
         user.locked_until = None
         user.last_login = datetime.now(timezone.utc)
         db.session.commit()
-        
-        # Déverrouiller le coffre : dériver la KEK et récupérer la VMK (zero-knowledge, C1)
-        vmk = EncryptionService.unlock_vault(user.kdf_salt, user.wrapped_vault_key, password)
 
         # Créer la session stable + ancrer la VMK (jamais recopiée)
         session_id = str(uuid.uuid4())

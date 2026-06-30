@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
     username VARCHAR(100),
-    password_hash VARCHAR(128) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT TRUE,
@@ -100,8 +99,6 @@ CREATE TRIGGER update_passwords_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Insérer des données de test (optionnel, pour le développement)
--- Mot de passe : "password123" hashé avec bcrypt
--- INSERT INTO users (email, password_hash) VALUES 
--- ('admin@test.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj8MR7vvyGE6');
+-- (aucune donnée de seed : auth zero-knowledge, pas de hash à insérer)
 
 COMMIT;

@@ -260,3 +260,12 @@ class EncryptionService:
         salt = secrets.token_bytes(16)
         kek = EncryptionService.derive_kek(new_master_password, salt)
         return salt, EncryptionService.wrap_vmk(vmk, kek)
+
+    @staticmethod
+    def waste_argon2():
+        """Consommer un cout Argon2id equivalent a un login (anti-enumeration timing).
+
+        Appele quand l'email est inconnu : le temps de reponse d'un login echoue
+        devient indistinguable entre compte existant et inexistant.
+        """
+        EncryptionService.derive_kek("timing-equalizer", b"\x00" * 16)

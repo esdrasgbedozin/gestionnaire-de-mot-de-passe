@@ -50,9 +50,7 @@ def client(app):
 def sample_user(app):
     """Fixture pour créer un utilisateur de test"""
     with app.app_context():
-        user = User(
-            email="test@example.com", password="TestPassword123!", username="testuser"
-        )
+        user = User(email="test@example.com", username="testuser")
         salt, wrapped, vmk = EncryptionService.provision_vault("TestPassword123!")
         user.kdf_salt = salt
         user.wrapped_vault_key = wrapped
@@ -265,9 +263,6 @@ class TestTokenRefresh:
 class TestAccountLocking:
     """Tests pour le verrouillage de compte"""
 
-    @pytest.mark.xfail(
-        reason="Verrouillage de compte renvoie 500 au lieu de 401 — à corriger au Lot 4"
-    )
     def test_account_locking_after_failed_attempts(self, client, sample_user):
         """Test verrouillage de compte après tentatives échouées"""
         login_data = {"email": "test@example.com", "password": "WrongPassword123!"}
@@ -359,3 +354,49 @@ class TestSessionModel:
         gr = client.get(f"/api/passwords/{pid}", headers=h)
         assert gr.status_code == 200
         assert json.loads(gr.data)["password"] == secret
+
+
+class TestAuthBascule:
+    """H2.3 : l'authentification = déballage de la VMK (plus de bcrypt)."""
+
+    def test_auth_via_vmk_unwrap_no_bcrypt(self, client, sample_user):
+        """Plus de bcrypt : pas de check_password sur le modèle ; login via unlock."""
+        from app.models import User
+
+        assert not hasattr(User, "check_password")
+        r = client.post(
+            "/api/auth/login",
+            data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 200
+        assert "access_token" in json.loads(r.data)["tokens"]
+
+    def test_login_wrong_password_401(self, client, sample_user):
+        """Mauvais master password → unlock échoue → 401."""
+        r = client.post(
+            "/api/auth/login",
+            data=json.dumps({"email": "test@example.com", "password": "WrongPassword123!"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 401
+
+    def test_login_unknown_email_still_pays_argon2(self, client, monkeypatch):
+        """Q3 : email inconnu → on paie quand même Argon2id (anti-énumération par timing)."""
+        from app.services.encryption_service import EncryptionService
+
+        calls = {"n": 0}
+        real = EncryptionService.derive_kek
+
+        def spy(*a, **k):
+            calls["n"] += 1
+            return real(*a, **k)
+
+        monkeypatch.setattr(EncryptionService, "derive_kek", spy)
+        r = client.post(
+            "/api/auth/login",
+            data=json.dumps({"email": "ghost@example.com", "password": "Whatever123!"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 401
+        assert calls["n"] >= 1  # aucun court-circuit du coût Argon2id

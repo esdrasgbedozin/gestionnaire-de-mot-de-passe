@@ -36,11 +36,7 @@ class TestSchemaCrypto:
     def test_crypto_columns_persist(self, app):
         """Les colonnes crypto persistent les valeurs écrites (bytes pour le sel, texte pour la VMK enveloppée)."""
         with app.app_context():
-            user = User(
-                email="persist@example.com",
-                password="PersistPass123!",
-                username="persist",
-            )
+            user = User(email="persist@example.com", username="persist")
             user.kdf_salt = (
                 b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f"
             )
@@ -226,7 +222,7 @@ class TestC1Proofs:
         """État réaliste : un User provisionné + une entrée chiffrée, persistés en base."""
         with app.app_context():
             salt, wrapped, vmk = E.provision_vault(self.MP)
-            user = User(email='proof@example.com', password=self.MP, username='proof')
+            user = User(email='proof@example.com', username='proof')
             user.kdf_salt = salt
             user.wrapped_vault_key = wrapped
             db.session.add(user)

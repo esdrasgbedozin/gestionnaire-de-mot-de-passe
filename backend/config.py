@@ -57,7 +57,6 @@ class Config:
     ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 
     # Configuration de sécurité (valeurs non sensibles : défauts acceptables)
-    BCRYPT_LOG_ROUNDS = int(os.environ.get("BCRYPT_ROUNDS", 12))
     MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", 5))
     LOCKOUT_DURATION = int(os.environ.get("LOCKOUT_DURATION", 900))  # 15 minutes
 
@@ -92,7 +91,6 @@ class ProductionConfig(Config):
     # Sécurité renforcée en production
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30)  # Tokens plus courts
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)  # Refresh plus court
-    BCRYPT_LOG_ROUNDS = int(os.environ.get("BCRYPT_ROUNDS", 14))  # Plus sécurisé
 
     # Rate limiting strict
     MAX_LOGIN_ATTEMPTS = int(os.environ.get("MAX_LOGIN_ATTEMPTS", 3))
@@ -125,7 +123,6 @@ class TestingConfig(Config):
     SECRET_KEY = "test-secret-key-not-for-production"
     JWT_SECRET_KEY = "test-jwt-secret-key-not-for-production"
     ENCRYPTION_KEY = "test-encryption-key-not-for-prod!"
-    BCRYPT_LOG_ROUNDS = 4  # Plus rapide pour les tests
 
 
 # Dictionnaire des configurations
