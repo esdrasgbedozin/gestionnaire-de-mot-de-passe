@@ -89,3 +89,27 @@ class TestDevSecurityHeaders:
         r = client.get("/", base_url="http://localhost")
         assert r.status_code == 200
         assert "Strict-Transport-Security" not in r.headers
+
+
+class TestScriptSrcNoUnsafeInline:
+    """H5 : la CSP prod Flask n'autorise plus 'unsafe-inline' sur script-src."""
+
+    def _directives(self):
+        client = _prod_headers_app().test_client()
+        r = client.get("/", base_url="https://localhost")
+        csp = r.headers.get("Content-Security-Policy", "")
+        directives = {}
+        for part in csp.split(";"):
+            part = part.strip()
+            if part:
+                directives[part.split()[0]] = part
+        return directives
+
+    def test_script_src_has_no_unsafe_inline(self):
+        script_src = self._directives().get("script-src", "")
+        assert "'self'" in script_src
+        assert "unsafe-inline" not in script_src  # RED avant : script-src 'self' 'unsafe-inline'
+
+    def test_style_src_unsafe_inline_unchanged(self):
+        # H5 ne touche PAS style-src (styles inline React) — garde-fou
+        assert "unsafe-inline" in self._directives().get("style-src", "")

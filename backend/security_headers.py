@@ -56,7 +56,7 @@ class SecurityHeaders:
     # CSP pour production (à ajuster selon les besoins)
     CSP_POLICY_PRODUCTION = (
         "default-src 'self'; "
-        "script-src 'self' 'unsafe-inline'; "  # Peut être rendu plus strict
+        "script-src 'self'; "  # H5 : plus de 'unsafe-inline' (le back sert du JSON, aucun script inline)
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "font-src 'self' https://fonts.gstatic.com; "
         "img-src 'self' data: https:; "
