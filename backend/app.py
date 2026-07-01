@@ -3,6 +3,7 @@ Application principale Flask
 """
 
 import os
+import time
 from flask import Flask, jsonify
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
