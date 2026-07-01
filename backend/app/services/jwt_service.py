@@ -14,7 +14,7 @@ class JWTService:
 
     @staticmethod
     def generate_tokens(user, session_id):
-        """Générer access + refresh tokens, rattachés à une session stable (sid)."""
+        """Générer (tokens, refresh_jti) rattachés à une session stable (sid)."""
         now = datetime.utcnow()
 
         access_payload = {
@@ -27,6 +27,7 @@ class JWTService:
             "jti": str(uuid.uuid4()),
         }
 
+        refresh_jti = str(uuid.uuid4())
         refresh_payload = {
             "user_id": str(user.id),
             "email": user.email,
@@ -34,7 +35,7 @@ class JWTService:
             "exp": now + timedelta(days=7),
             "type": "refresh",
             "sid": session_id,
-            "jti": str(uuid.uuid4()),
+            "jti": refresh_jti,
         }
 
         access_token = jwt.encode(
@@ -44,13 +45,14 @@ class JWTService:
             refresh_payload, current_app.config["JWT_SECRET_KEY"], algorithm="HS256"
         )
 
-        return {
+        tokens = {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "Bearer",
             "expires_in": 900,  # 15 minutes
             "expires_at": (now + timedelta(minutes=15)).isoformat(),
         }
+        return tokens, refresh_jti
 
     @staticmethod
     def decode_token(token):
@@ -65,38 +67,6 @@ class JWTService:
         except jwt.InvalidTokenError as e:
             return None, f"Invalid token: {str(e)}"
 
-    @staticmethod
-    def refresh_access_token(refresh_token):
-        """Générer un nouveau token d'accès à partir du refresh token.
-
-        Le nouveau access token conserve le même `sid` (session stable).
-        La rotation/détection de rejeu est ajoutée en H2.4.
-        """
-        payload, error = JWTService.decode_token(refresh_token)
-        if error:
-            return None, error
-        if payload.get("type") != "refresh":
-            return None, "Invalid token type"
-
-        now = datetime.utcnow()
-        access_payload = {
-            "user_id": payload["user_id"],
-            "email": payload["email"],
-            "iat": now,
-            "exp": now + timedelta(minutes=15),
-            "type": "access",
-            "sid": payload.get("sid"),
-            "jti": str(uuid.uuid4()),
-        }
-        access_token = jwt.encode(
-            access_payload, current_app.config["JWT_SECRET_KEY"], algorithm="HS256"
-        )
-        return {
-            "access_token": access_token,
-            "token_type": "Bearer",
-            "expires_in": 900,
-            "expires_at": (now + timedelta(minutes=15)).isoformat(),
-        }, None
 
 
 def token_required(f):

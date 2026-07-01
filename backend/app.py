@@ -37,6 +37,8 @@ def create_app(config_name=None):
     from app.services.session_key_store import SessionKeyStore
     app.redis = make_redis_client()
     app.session_key_store = SessionKeyStore(client=app.redis)
+    from app.services.session_service import RefreshRegistry
+    app.refresh_registry = RefreshRegistry(client=app.redis)
     
     # Initialisation des extensions
     db.init_app(app)

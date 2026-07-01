@@ -11,6 +11,7 @@ from app.models import User
 import fakeredis
 from app.services.session_key_store import SessionKeyStore
 from rate_limiter import RateLimiter
+from app.services.session_service import RefreshRegistry
 
 
 @pytest.fixture
@@ -19,6 +20,7 @@ def app():
     app.redis = fakeredis.FakeStrictRedis()
     app.session_key_store = SessionKeyStore(client=app.redis)
     app.rate_limiter = RateLimiter(app.redis)
+    app.refresh_registry = RefreshRegistry(app.redis)
     with app.app_context():
         db.create_all()
         yield app

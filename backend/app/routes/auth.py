@@ -145,7 +145,10 @@ def register():
             session_id, vmk,
             current_app.config['VAULT_SESSION_IDLE_TTL_SECONDS'],
             current_app.config['VAULT_SESSION_ABSOLUTE_TTL_SECONDS'])
-        tokens = JWTService.generate_tokens(new_user, session_id)
+        tokens, refresh_jti = JWTService.generate_tokens(new_user, session_id)
+        current_app.refresh_registry.register(
+            refresh_jti, session_id,
+            current_app.config['VAULT_SESSION_ABSOLUTE_TTL_SECONDS'])
         
         # Log de succès
         log_audit_event(
@@ -280,7 +283,10 @@ def login():
             session_id, vmk,
             current_app.config['VAULT_SESSION_IDLE_TTL_SECONDS'],
             current_app.config['VAULT_SESSION_ABSOLUTE_TTL_SECONDS'])
-        tokens = JWTService.generate_tokens(user, session_id)
+        tokens, refresh_jti = JWTService.generate_tokens(user, session_id)
+        current_app.refresh_registry.register(
+            refresh_jti, session_id,
+            current_app.config['VAULT_SESSION_ABSOLUTE_TTL_SECONDS'])
         
         # Log de succès
         log_audit_event(
@@ -344,33 +350,38 @@ def logout(current_user_id):
 def refresh():
     """Route de rafraîchissement de token"""
     try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'Request body is required'}), 400
-        
+        data = request.get_json(silent=True) or {}   # Bug B : corps vide/malformé → 400
+
         refresh_token = data.get('refresh_token')
-        
         if not refresh_token:
             return jsonify({'error': 'Refresh token is required'}), 400
-        
-        # La session doit encore exister (révocation par session)
+
         payload, decode_err = JWTService.decode_token(refresh_token)
         if decode_err:
-            return jsonify({'error': decode_err}), 401
-        if not current_app.session_key_store.session_exists(payload.get('sid')):
+            return jsonify({'error': decode_err}), 401       # token invalide → 401
+        if payload.get('type') != 'refresh':
+            return jsonify({'error': 'Invalid token type'}), 401
+
+        sid = payload.get('sid')
+        old_jti = payload.get('jti')
+        store = current_app.session_key_store
+        if not sid or not store.session_exists(sid):
             return jsonify({'error': 'Session expired or revoked'}), 401
-        
-        # Générer un nouveau token d'accès
-        new_tokens, error = JWTService.refresh_access_token(refresh_token)
-        
-        if error:
-            return jsonify({'error': error}), 401
-        
-        return jsonify({
-            'message': 'Token refreshed successfully',
-            'tokens': new_tokens
-        }), 200
+
+        user = User.query.get(payload['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 401
+
+        # Nouveau couple de tokens (même session, VMK inchangée)
+        tokens, new_jti = JWTService.generate_tokens(user, sid)
+
+        # Rotation ATOMIQUE : consomme old_jti et publie new_jti (RENAME)
+        if current_app.refresh_registry.rotate(old_jti, new_jti):
+            return jsonify({'message': 'Token refreshed successfully', 'tokens': tokens}), 200
+
+        # old_jti déjà consommé → REJEU (vol présumé) → révoquer toute la session
+        store.evict(sid)
+        return jsonify({'error': 'Refresh token reuse detected; session revoked'}), 401
         
     except Exception as e:
         return jsonify({'error': 'Token refresh failed'}), 500

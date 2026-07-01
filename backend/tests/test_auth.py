@@ -15,6 +15,7 @@ from app.models import User
 import fakeredis
 from app.services.session_key_store import SessionKeyStore
 from rate_limiter import RateLimiter
+from app.services.session_service import RefreshRegistry
 from app.services.encryption_service import EncryptionService
 
 
@@ -33,6 +34,7 @@ def app():
     app.redis = fakeredis.FakeStrictRedis()
     app.session_key_store = SessionKeyStore(client=app.redis)
     app.rate_limiter = RateLimiter(app.redis)
+    app.refresh_registry = RefreshRegistry(app.redis)
 
     with app.app_context():
         db.create_all()
@@ -241,17 +243,13 @@ class TestTokenRefresh:
         assert "tokens" in response_data
         assert "access_token" in response_data["tokens"]
 
-    @pytest.mark.xfail(
-        reason="Requête refresh malformée → 500 au lieu de 401/400 — robustesse à corriger au Lot 4"
-    )
     def test_refresh_invalid_token(self, client):
-        """Test rafraîchissement avec token invalide"""
+        """Token de refresh invalide (dans le corps) → 401."""
         response = client.post(
             "/api/auth/refresh",
-            headers={"Authorization": "Bearer invalid_token"},
+            data=json.dumps({"refresh_token": "garbage.invalid.token"}),
             content_type="application/json",
         )
-
         assert response.status_code == 401
         response_data = json.loads(response.data)
         assert "error" in response_data
@@ -397,3 +395,62 @@ class TestAuthBascule:
         )
         assert r.status_code == 401
         assert calls["n"] >= 1  # aucun court-circuit du coût Argon2id
+
+
+class TestRefreshRotation:
+    """H2.4 : rotation des refresh tokens + détection de rejeu + robustesse (Bug B)."""
+
+    def _login_tokens(self, client):
+        r = client.post(
+            "/api/auth/login",
+            data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+            content_type="application/json",
+        )
+        return json.loads(r.data)["tokens"]
+
+    def _refresh(self, client, refresh_token):
+        return client.post(
+            "/api/auth/refresh",
+            data=json.dumps({"refresh_token": refresh_token}),
+            content_type="application/json",
+        )
+
+    def test_rotation_old_refresh_invalid_and_vmk_not_moved(self, client, sample_user, app):
+        toks = self._login_tokens(client)
+        keys_before = sorted(app.redis.keys("session:*"))
+        assert len(keys_before) == 1  # une seule clé VMK
+
+        r1 = self._refresh(client, toks["refresh_token"])
+        assert r1.status_code == 200
+        new_refresh = json.loads(r1.data)["tokens"]["refresh_token"]
+        assert new_refresh != toks["refresh_token"]
+
+        # Après rotation LÉGITIME, la VMK n'a PAS bougé (même clé de session, jamais recopiée)
+        assert sorted(app.redis.keys("session:*")) == keys_before
+
+        # L'ancien refresh ne marche plus (rejeu → 401)
+        assert self._refresh(client, toks["refresh_token"]).status_code == 401
+
+    def test_reuse_detection_revokes_session(self, client, sample_user):
+        toks = self._login_tokens(client)
+        access0 = toks["access_token"]
+
+        # 1re rotation : consomme le refresh initial
+        assert self._refresh(client, toks["refresh_token"]).status_code == 200
+        # Rejeu du refresh DÉJÀ CONSOMMÉ → détection de vol
+        replay = self._refresh(client, toks["refresh_token"])
+        assert replay.status_code == 401
+        # Toute la session est révoquée → un access token de cette session est refusé
+        refused = client.get("/api/passwords/", headers={"Authorization": f"Bearer {access0}"})
+        assert refused.status_code in (401, 423)
+
+    def test_new_refresh_after_rotation_works(self, client, sample_user):
+        toks = self._login_tokens(client)
+        r1 = self._refresh(client, toks["refresh_token"])
+        new_refresh = json.loads(r1.data)["tokens"]["refresh_token"]
+        # Le NOUVEAU refresh est valide (peut tourner à son tour)
+        assert self._refresh(client, new_refresh).status_code == 200
+
+    def test_refresh_empty_body_400(self, client):
+        r = client.post("/api/auth/refresh", data="", content_type="application/json")
+        assert r.status_code == 400
