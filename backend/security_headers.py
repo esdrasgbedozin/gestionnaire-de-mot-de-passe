@@ -96,14 +96,14 @@ def add_security_headers(response, app_config=None):
         response.headers[header] = value
     
     # CSP selon l'environnement
-    env = app_config.get('ENV', 'development') if app_config else 'development'
+    env = app_config.get('ENVIRONMENT', 'development') if app_config else 'development'
     csp_policy = SecurityHeaders.get_csp_policy(env)
     response.headers['Content-Security-Policy'] = csp_policy
     
-    # HSTS uniquement en HTTPS production
-    if (app_config and 
-        app_config.get('ENV') == 'production' and 
-        app_config.get('FORCE_HTTPS', False)):
+    # HSTS en production (clé réelle FORCE_SSL)
+    if (app_config and
+            app_config.get('ENVIRONMENT') == 'production' and
+            app_config.get('FORCE_SSL', False)):
         response.headers['Strict-Transport-Security'] = SecurityHeaders.HSTS_HEADER
     
     # Headers API spécifiques pour les réponses JSON
@@ -124,15 +124,17 @@ def setup_security_headers(app: Flask):
     # Configuration HTTPS forcée pour la production
     @app.before_request
     def force_https():
-        """Forcer HTTPS en production"""
-        from flask import request, redirect, url_for
-        
-        if (app.config.get('ENV') == 'production' and 
-            app.config.get('FORCE_HTTPS', False) and
-            not request.is_secure):
-            
-            # Rediriger vers HTTPS
-            return redirect(request.url.replace('http://', 'https://'), code=301)
+        """Forcer HTTPS en production (sauf /health, appelé en HTTP par le healthcheck)."""
+        from flask import request, redirect
+
+        if request.path == '/health':   # exclusion sur le chemin EXACT
+            return None
+        # Derrière Nginx (proxy HTTP), X-Forwarded-Proto=https compte comme sécurisé
+        is_secure = request.is_secure or request.headers.get('X-Forwarded-Proto', 'http') == 'https'
+        if (app.config.get('ENVIRONMENT') == 'production' and
+                app.config.get('FORCE_SSL', False) and
+                not is_secure):
+            return redirect(request.url.replace('http://', 'https://', 1), code=301)
     
     # Suppression des headers révélateurs d'information
     @app.after_request

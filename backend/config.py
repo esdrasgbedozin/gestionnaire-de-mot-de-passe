@@ -41,6 +41,9 @@ def validate_required_secrets():
 class Config:
     """Configuration de base"""
 
+    # Environnement (signal FIABLE porté par la classe, pas une variable d'env indéfinie)
+    ENVIRONMENT = "development"
+
     # Secrets lus depuis l'environnement, SANS valeur de repli (validés au démarrage).
     SECRET_KEY = os.environ.get("SECRET_KEY")
 
@@ -85,6 +88,7 @@ class DevelopmentConfig(Config):
 class ProductionConfig(Config):
     """Configuration pour la production"""
 
+    ENVIRONMENT = "production"
     DEBUG = False
     TESTING = False
 
@@ -118,6 +122,7 @@ class TestingConfig(Config):
     automatisés et ne doivent jamais être utilisées en production.
     """
 
+    ENVIRONMENT = "testing"
     TESTING = True
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SECRET_KEY = "test-secret-key-not-for-production"
