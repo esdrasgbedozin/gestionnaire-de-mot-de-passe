@@ -13,6 +13,7 @@ durcissement (ProxyFix) est M1 (Lot 5), hors périmètre H2.
 """
 
 import hashlib
+import hmac
 import os
 import time
 from functools import wraps
@@ -53,6 +54,11 @@ class RateLimiter:
                     "window": 300,
                     "block_duration": 30,
                 },
+                "/api/admin/rate-limit-reset": {
+                    "requests": 10,
+                    "window": 300,
+                    "block_duration": 300,
+                },
                 "/api/passwords": {"requests": 100, "window": 60, "block_duration": 30},
                 "/api/passwords/*": {
                     "requests": 100,
@@ -82,6 +88,11 @@ class RateLimiter:
                     "requests": 10,
                     "window": 300,
                     "block_duration": 120,
+                },
+                "/api/admin/rate-limit-reset": {
+                    "requests": 5,
+                    "window": 300,
+                    "block_duration": 900,
                 },
                 "/api/passwords": {"requests": 30, "window": 60, "block_duration": 120},
                 "/api/passwords/*": {
@@ -244,19 +255,23 @@ def setup_rate_limiting(app):
         return jsonify(current_app.rate_limiter.get_stats())
 
     @app.route("/api/admin/rate-limit-reset", methods=["POST"])
+    @rate_limit_middleware
     def reset_rate_limit():
-        # NOTE : la sécurisation de cet endpoint (clé d'urgence) est H3 — non traité ici.
-        is_development = app.config.get("ENV", "production") != "production"
-        has_emergency_key = request.headers.get("X-Emergency-Key") == os.environ.get(
-            "EMERGENCY_RESET_KEY"
-        )
-
-        if not is_development and not has_emergency_key:
+        # H3 : fail-closed. Sans clé d'urgence CONFIGURÉE côté serveur, aucun reset.
+        server_key = os.environ.get("EMERGENCY_RESET_KEY")
+        if not server_key or not server_key.strip():
             return jsonify(
                 {
                     "error": "Access denied",
-                    "message": "Rate limit reset not available in production without emergency key",
+                    "message": "Emergency reset key not configured",
                 }
+            ), 403
+
+        # Comparaison à temps constant ; clé fournie absente/malformée → refus (pas de 500).
+        provided_key = request.headers.get("X-Emergency-Key")
+        if not provided_key or not hmac.compare_digest(provided_key, server_key):
+            return jsonify(
+                {"error": "Access denied", "message": "Invalid emergency key"}
             ), 403
 
         data = request.get_json(silent=True) or {}

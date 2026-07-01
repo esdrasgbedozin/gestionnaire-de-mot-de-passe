@@ -3,6 +3,7 @@ H2.1 — rate limiting backé Redis, atomique et partagé entre workers.
 """
 
 import pytest
+import json
 import fakeredis
 from app_entry import create_app
 from rate_limiter import RateLimiter
@@ -12,7 +13,13 @@ from rate_limiter import RateLimiter
 def app():
     app = create_app("testing")
     app.redis = fakeredis.FakeStrictRedis()
+    app.rate_limiter = RateLimiter(app.redis)
     return app
+
+
+@pytest.fixture
+def client(app):
+    return app.test_client()
 
 
 def _ctx(app, path):
@@ -57,3 +64,42 @@ class TestRedisRateLimit:
             results = [limiter.is_allowed(request)[0] for _ in range(25)]
         assert results[0] is True
         assert results[-1] is False
+
+
+RESET_URL = "/api/admin/rate-limit-reset"
+
+
+class TestEmergencyResetSecurity:
+    """H3 : reset d'urgence fail-closed + comparaison à temps constant + rate-limité."""
+
+    def test_reset_refused_when_server_key_absent(self, client, monkeypatch):
+        """PREUVE : sans clé serveur configurée, tout reset est refusé (avant le fix : None==None → 200)."""
+        monkeypatch.delenv("EMERGENCY_RESET_KEY", raising=False)
+        r = client.post(RESET_URL)  # aucune X-Emergency-Key fournie
+        assert r.status_code == 403
+
+    def test_reset_wrong_key_403(self, client, monkeypatch):
+        monkeypatch.setenv("EMERGENCY_RESET_KEY", "the-real-emergency-key")
+        r = client.post(RESET_URL, headers={"X-Emergency-Key": "wrong-key"})
+        assert r.status_code == 403
+
+    def test_reset_correct_key_200(self, client, monkeypatch):
+        monkeypatch.setenv("EMERGENCY_RESET_KEY", "the-real-emergency-key")
+        r = client.post(RESET_URL, headers={"X-Emergency-Key": "the-real-emergency-key"})
+        assert r.status_code == 200
+        assert json.loads(r.data)["status"] == "success"
+
+    def test_reset_missing_provided_key_no_500(self, client, monkeypatch):
+        """Clé serveur configurée mais rien fourni → 403 (jamais 500 via compare_digest)."""
+        monkeypatch.setenv("EMERGENCY_RESET_KEY", "the-real-emergency-key")
+        r = client.post(RESET_URL)  # pas de header
+        assert r.status_code == 403
+
+    def test_reset_endpoint_is_rate_limited(self, client, monkeypatch):
+        """L'endpoint a sa propre limite ; les tentatives échouées comptent → 429 au dépassement."""
+        monkeypatch.setenv("EMERGENCY_RESET_KEY", "the-real-emergency-key")
+        statuses = [
+            client.post(RESET_URL, headers={"X-Emergency-Key": "wrong"}).status_code
+            for _ in range(12)
+        ]
+        assert 429 in statuses
