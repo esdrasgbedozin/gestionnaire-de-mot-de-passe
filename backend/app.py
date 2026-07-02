@@ -5,6 +5,7 @@ Application principale Flask
 import os
 import time
 from flask import Flask, jsonify
+from werkzeug.middleware.proxy_fix import ProxyFix
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
@@ -25,6 +26,9 @@ def create_app(config_name=None):
         config_name = os.environ.get('FLASK_ENV', 'default')
     
     app = Flask(__name__)
+    # ProxyFix : ne faire confiance qu'au proxy de confiance (Nginx = 1 saut)
+    # pour X-Forwarded-For/Proto — sinon en-tête client falsifiable (M1).
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
     app.config.from_object(config[config_name])
 
     # Fail-fast : exiger les secrets depuis l'environnement (hors mode test).

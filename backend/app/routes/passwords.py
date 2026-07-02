@@ -34,7 +34,7 @@ def log_audit_event(action, success=True, error_message=None, resource_id=None, 
             # Essayer d'obtenir user_id du contexte de la requête si disponible
             user_id = getattr(request, 'current_user_id', None)
         
-        ip_address = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
+        ip_address = request.remote_addr  # fiable via ProxyFix (M1)
         user_agent = request.headers.get('User-Agent', '')
         
         # Créer une nouvelle session pour l'audit

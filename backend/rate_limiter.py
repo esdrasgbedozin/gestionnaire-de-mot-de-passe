@@ -8,8 +8,9 @@ avec son TTL en une opération atomique (SET … NX EX), puis incrémenté (INCR
 il n'existe donc jamais de clé sans TTL (pas de course INCR/EXPIRE).
 La blacklist de blocage utilise SET … EX (atomique).
 
-Note : l'identification du client repose encore sur X-Forwarded-For ; son
-durcissement (ProxyFix) est M1 (Lot 5), hors périmètre H2.
+Identification du client : basée sur request.remote_addr, fiabilisé par ProxyFix
+(x_for=1) au niveau de l'app — l'en-tête X-Forwarded-For brut du client n'est plus
+lu directement (M1).
 """
 
 import hashlib
@@ -110,7 +111,8 @@ class RateLimiter:
 
     def _get_client_id(self, request):
         """Identifiant client (IP + User-Agent hashés)."""
-        ip = request.environ.get("HTTP_X_FORWARDED_FOR", request.remote_addr)
+        # request.remote_addr est fiable grâce à ProxyFix (M1) ; ne PAS relire l'en-tête brut
+        ip = request.remote_addr
         user_agent = request.headers.get("User-Agent", "")
         return hashlib.md5(f"{ip}:{user_agent}".encode()).hexdigest()[:16]
 

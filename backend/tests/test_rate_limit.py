@@ -103,3 +103,44 @@ class TestEmergencyResetSecurity:
             for _ in range(12)
         ]
         assert 429 in statuses
+
+
+class TestProxyFix:
+    """M1 : ProxyFix(x_for=1) — l'IP client vient du proxy de confiance, pas du header brut."""
+
+    def _register_route(self, app):
+        from flask import request, current_app, jsonify
+
+        def whoami():
+            return jsonify(
+                client_id=current_app.rate_limiter._get_client_id(request),
+                remote_addr=request.remote_addr,
+            )
+
+        app.add_url_rule("/__client_id__", "whoami_ci", whoami)
+        return app.test_client()
+
+    def test_forged_xff_ignored_same_real_ip_grouped(self, app):
+        """Gauches forgées différentes, même IP réelle (droite) → même client_id (forgé ignoré)."""
+        c = self._register_route(app)
+        a = json.loads(c.get("/__client_id__", headers={"X-Forwarded-For": "9.9.9.9, 203.0.113.5"}).data)
+        b = json.loads(c.get("/__client_id__", headers={"X-Forwarded-For": "7.7.7.7, 203.0.113.5"}).data)
+        assert a["remote_addr"] == "203.0.113.5"
+        assert b["remote_addr"] == "203.0.113.5"
+        assert a["client_id"] == b["client_id"]
+
+    def test_distinct_real_ips_not_grouped(self, app):
+        """Deux vraies IP différentes (droite) → client_id différents (pas de sur-regroupement)."""
+        c = self._register_route(app)
+        a = json.loads(c.get("/__client_id__", headers={"X-Forwarded-For": "9.9.9.9, 203.0.113.5"}).data)
+        b = json.loads(c.get("/__client_id__", headers={"X-Forwarded-For": "9.9.9.9, 198.51.100.7"}).data)
+        assert a["remote_addr"] == "203.0.113.5"
+        assert b["remote_addr"] == "198.51.100.7"
+        assert a["client_id"] != b["client_id"]
+
+    def test_no_xff_uses_direct_remote_addr(self, app):
+        """Sans X-Forwarded-For (dev/test direct) → pas de crash, IP directe utilisée."""
+        c = self._register_route(app)
+        r = c.get("/__client_id__")
+        assert r.status_code == 200
+        assert json.loads(r.data)["remote_addr"]
