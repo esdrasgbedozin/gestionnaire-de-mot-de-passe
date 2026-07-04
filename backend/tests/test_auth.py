@@ -628,3 +628,151 @@ class TestMasterPasswordStrength:
         """Master password réellement fort (zxcvbn=4, >= 12) → accepté (201)."""
         r = self._register(client, STRONG_TEST_PASSWORD)
         assert r.status_code == 201
+
+
+class TestAccountDeletion:
+    """D2 : DELETE /account (destruction TOTALE irréversible) exige une ré-auth
+    FORTE — ressaisie du master password vérifiée par déballage VMK (comme le
+    login H2.3, identité prouvée fraîchement) + confirmation littérale "DELETE".
+    Séquence critique : prouver -> révoquer la session -> purger. Un token volé
+    seul ne doit PLUS suffire à détruire le coffre."""
+
+    def _spy_derive_kek(self, monkeypatch):
+        calls = {"n": 0}
+        real = EncryptionService.derive_kek
+
+        def spy(*a, **k):
+            calls["n"] += 1
+            return real(*a, **k)
+
+        monkeypatch.setattr(EncryptionService, "derive_kek", spy)
+        return calls
+
+    def _delete(self, client, token, body=None):
+        kwargs = {
+            "headers": {"Authorization": f"Bearer {token}"},
+            "content_type": "application/json",
+        }
+        if body is not None:
+            kwargs["data"] = json.dumps(body)
+        return client.delete("/api/users/account", **kwargs)
+
+    def _sid(self, access):
+        return pyjwt.decode(access, JWT_TEST_SECRET, algorithms=["HS256"])["sid"]
+
+    def test_delete_account_without_master_password(self, client, sample_user):
+        """Token valide seul, sans master password → refusé (400).
+        RED avant D2 : le compte est purgé avec le seul access token (200)."""
+        access = _login(client)
+        r = self._delete(client, access, {"confirm": "DELETE"})
+        assert r.status_code == 400
+        assert User.query.filter_by(email="test@example.com").first() is not None
+
+    def test_delete_account_wrong_master_password(
+        self, client, sample_user, app, monkeypatch
+    ):
+        """Mauvais master password → 401, RIEN détruit, Argon2 payé (anti-timing).
+        RED avant D2 : purge inconditionnelle (200)."""
+        access = _login(client)
+        sid = self._sid(access)
+        calls = self._spy_derive_kek(monkeypatch)
+
+        r = self._delete(
+            client,
+            access,
+            {"master_password": "Wrong-Master-9!xyz", "confirm": "DELETE"},
+        )
+        assert r.status_code == 401
+        assert User.query.filter_by(email="test@example.com").first() is not None
+        assert app.session_key_store.session_exists(sid)  # session intacte
+        assert calls["n"] >= 1  # déballage tenté → Argon2 payé
+
+    def test_delete_account_without_confirmation(self, client, sample_user):
+        """Bon master password mais confirmation absente/incorrecte → refusé (400).
+        RED avant D2 : purge (200) sans exiger de confirmation."""
+        access = _login(client)
+        r = self._delete(client, access, {"master_password": STRONG_TEST_PASSWORD})
+        assert r.status_code == 400
+        assert User.query.filter_by(email="test@example.com").first() is not None
+
+    def test_delete_account_success(self, client, sample_user, app):
+        """Bon master password + confirmation "DELETE" → purge OK ET session révoquée.
+        RED avant D2 : la session courante n'est pas évincée."""
+        access = _login(client)
+        sid = self._sid(access)
+        r = self._delete(
+            client,
+            access,
+            {"master_password": STRONG_TEST_PASSWORD, "confirm": "DELETE"},
+        )
+        assert r.status_code == 200
+        assert User.query.filter_by(email="test@example.com").first() is None
+        assert not app.session_key_store.session_exists(sid)  # session révoquée
+
+    def test_delete_account_failed_reauth_does_not_revoke_or_purge(
+        self, client, sample_user, app
+    ):
+        """GARDIEN de la séquence prouver->révoquer->purger : un échec de ré-auth
+        ne doit NI révoquer la session NI purger le compte (on ne déconnecte pas
+        un utilisateur légitime dont la ré-auth échoue)."""
+        access = _login(client)
+        sid = self._sid(access)
+        r = self._delete(
+            client, access, {"master_password": "Nope-Wrong-1!abc", "confirm": "DELETE"}
+        )
+        assert r.status_code == 401
+        assert User.query.filter_by(email="test@example.com").first() is not None
+        assert app.session_key_store.session_exists(sid)
+        # la session reste utilisable
+        ok = client.get(
+            "/api/passwords/", headers={"Authorization": f"Bearer {access}"}
+        )
+        assert ok.status_code == 200
+
+
+class TestPasswordDeleteOwnership:
+    """D2 : non-régression IDOR sur DELETE /passwords/<id>. Le contrôle
+    d'ownership existe déjà (filter_by(id, user_id)) ; ce test le verrouille."""
+
+    def _register_login(self, client, email, username):
+        client.post(
+            "/api/auth/register",
+            data=json.dumps(
+                {"email": email, "username": username, "password": STRONG_TEST_PASSWORD}
+            ),
+            content_type="application/json",
+        )
+        r = client.post(
+            "/api/auth/login",
+            data=json.dumps({"email": email, "password": STRONG_TEST_PASSWORD}),
+            content_type="application/json",
+        )
+        return json.loads(r.data)["tokens"]["access_token"]
+
+    def test_cannot_delete_other_users_password_entry(self, client, sample_user):
+        """User B ne peut PAS supprimer l'entrée de User A → 404 (isolation par user_id)."""
+        access_a = _login(client)  # user A = sample_user
+        cr = client.post(
+            "/api/passwords/",
+            headers={"Authorization": f"Bearer {access_a}"},
+            data=json.dumps(
+                {
+                    "site_name": "a-site.com",
+                    "username": "alice",
+                    "password": "A-secret-1!",
+                }
+            ),
+            content_type="application/json",
+        )
+        pid_a = json.loads(cr.data)["password"]["id"]
+
+        access_b = self._register_login(client, "bob@example.com", "bobuser")
+        r = client.delete(
+            f"/api/passwords/{pid_a}", headers={"Authorization": f"Bearer {access_b}"}
+        )
+        assert r.status_code == 404
+        # l'entrée de A existe toujours
+        still = client.get(
+            f"/api/passwords/{pid_a}", headers={"Authorization": f"Bearer {access_a}"}
+        )
+        assert still.status_code == 200

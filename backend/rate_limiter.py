@@ -60,6 +60,13 @@ class RateLimiter:
                     "window": 300,
                     "block_duration": 300,
                 },
+                # D2 : destruction totale du compte — cible de brute-force du master
+                # password, isolée du quota de login (bucket dédié strict, calibré H3).
+                "/api/users/account": {
+                    "requests": 10,
+                    "window": 300,
+                    "block_duration": 300,
+                },
                 "/api/passwords": {"requests": 100, "window": 60, "block_duration": 30},
                 "/api/passwords/*": {
                     "requests": 100,
@@ -91,6 +98,12 @@ class RateLimiter:
                     "block_duration": 120,
                 },
                 "/api/admin/rate-limit-reset": {
+                    "requests": 5,
+                    "window": 300,
+                    "block_duration": 900,
+                },
+                # D2 : destruction totale du compte — bucket dédié strict (calibré H3).
+                "/api/users/account": {
                     "requests": 5,
                     "window": 300,
                     "block_duration": 900,
