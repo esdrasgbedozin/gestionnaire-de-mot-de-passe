@@ -113,9 +113,14 @@ def register():
         if not is_valid:
             return jsonify({'error': message}), 400
         
-        # Vérifier si l'utilisateur existe déjà
+        # M2 (Option B) : on RÉVÈLE l'existence (409 explicite) — UX nécessaire sans email de
+        # récupération, comportement des gestionnaires réels — mais on ferme l'énumération de
+        # MASSE (rate-limit dédié du register) et on égalise le TIMING (waste_argon2 sur conflit,
+        # comme le chemin succès qui paie provision_vault). Anti-énumération STRICTE (réponse
+        # générique) = évolution future conditionnée à un service d'envoi d'email → Lot 6/futur.
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
+            EncryptionService.waste_argon2()  # M2 : timing égalisé (conflit paie comme le succès)
             # Log de tentative d'inscription avec email existant
             log_audit_event(
                 user_id=None,
@@ -127,8 +132,9 @@ def register():
             )
             return jsonify({'error': 'Email already registered'}), 409
         
-        # Unicité du username (Q5)
+        # Unicité du username (Q5) — message inchangé ; on ajoute juste le coût timing (M2)
         if username and User.query.filter_by(username=username).first():
+            EncryptionService.waste_argon2()  # M2 : timing égalisé (conflit paie comme le succès)
             return jsonify({'error': 'Username already taken'}), 409
         
         # Créer le nouvel utilisateur + provisionner son coffre (zero-knowledge, C1)

@@ -503,3 +503,51 @@ class TestLoginTimingEqualization:
         assert "disabled" in r.data.decode().lower()  # désactivation maintenue
         assert calls["n"] >= 1
 
+
+class TestRegisterEnumerationHardening:
+    """M2 (Option B) : timing du register égalisé (conflit paie Argon2) + rate-limit de masse."""
+
+    def _spy_derive_kek(self, monkeypatch):
+        calls = {"n": 0}
+        real = EncryptionService.derive_kek
+
+        def spy(*a, **k):
+            calls["n"] += 1
+            return real(*a, **k)
+
+        monkeypatch.setattr(EncryptionService, "derive_kek", spy)
+        return calls
+
+    def test_email_conflict_pays_argon2(self, client, sample_user, monkeypatch):
+        calls = self._spy_derive_kek(monkeypatch)
+        r = client.post(
+            "/api/auth/register",
+            data=json.dumps({"username": "someoneelse", "email": "test@example.com", "password": "ValidPassword123!"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 409                                  # Q5 : message/statut inchangés
+        assert "already registered" in r.data.decode().lower()
+        assert calls["n"] >= 1                                       # timing égalisé (comme le succès)
+
+    def test_username_conflict_pays_argon2(self, client, sample_user, monkeypatch):
+        calls = self._spy_derive_kek(monkeypatch)
+        r = client.post(
+            "/api/auth/register",
+            data=json.dumps({"username": "testuser", "email": "brand-new@example.com", "password": "ValidPassword123!"}),
+            content_type="application/json",
+        )
+        assert r.status_code == 409
+        assert "already taken" in r.data.decode().lower()
+        assert calls["n"] >= 1
+
+    def test_register_is_rate_limited(self, client):
+        """Garde/complétude : au-delà de la limite dédiée du register → 429 (énumération de masse throttlée)."""
+        statuses = [
+            client.post(
+                "/api/auth/register",
+                data=json.dumps({"username": f"u{i}", "email": f"u{i}@example.com", "password": "ValidPassword123!"}),
+                content_type="application/json",
+            ).status_code
+            for i in range(13)
+        ]
+        assert 429 in statuses
