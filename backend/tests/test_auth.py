@@ -789,3 +789,35 @@ class TestGetMe:
         r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {access}"})
         assert r.status_code == 200  # RED avant A3 : 500
         assert json.loads(r.data)["user"]["email"] == "test@example.com"
+
+
+class TestDecryptionRateLimit:
+    """Lot 6 (C7) : les GET qui DÉCHIFFRENT (liste + entrée) sont rate-limités.
+    Avant C7 : seuls POST/DELETE l'étaient → un token permettait un dump sans throttle."""
+
+    def _make_entry(self, client, h):
+        cr = client.post(
+            "/api/passwords/",
+            headers=h,
+            data=json.dumps(
+                {"site_name": "x.com", "username": "u", "password": "P-entry-1!"}
+            ),
+            content_type="application/json",
+        )
+        return json.loads(cr.data)["password"]["id"]
+
+    def test_get_entry_is_rate_limited(self, client, sample_user):
+        access = _login(client)
+        h = {"Authorization": f"Bearer {access}"}
+        pid = self._make_entry(client, h)
+
+        # Usage normal : quelques lectures ne déclenchent PAS de 429
+        for _ in range(5):
+            assert client.get(f"/api/passwords/{pid}", headers=h).status_code == 200
+
+        # Martèlement au-delà du bucket /api/passwords/* → 429 apparaît
+        statuses = [
+            client.get(f"/api/passwords/{pid}", headers=h).status_code
+            for _ in range(120)
+        ]
+        assert 429 in statuses  # RED avant C7 : jamais limité (que des 200)
