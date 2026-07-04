@@ -592,3 +592,39 @@ class TestRegisterEnumerationHardening:
             for i in range(13)
         ]
         assert 429 in statuses
+
+
+class TestMasterPasswordStrength:
+    """M6 : le master password (seul secret protégeant tout le coffre) doit être
+    FORT — pas seulement long. Gate zxcvbn (score >= 3) + longueur minimale 12,
+    appliqués au register uniquement. Les entrées du coffre ne sont PAS gatées."""
+
+    def _register(self, client, password, email="fresh@example.com"):
+        return client.post(
+            "/api/auth/register",
+            data=json.dumps(
+                {"username": "freshuser", "email": email, "password": password}
+            ),
+            content_type="application/json",
+        )
+
+    def test_rejects_long_but_weak_master_password(self, client):
+        """Long + toutes les classes de caractères MAIS prévisible (zxcvbn=2) → refusé.
+        RED avant M6 : accepté (len>=8 + classes) → 201 au lieu de 400."""
+        r = self._register(
+            client, "Passw0rd1234!"
+        )  # 13 car., maj/min/chiffre/spécial, zxcvbn=2
+        assert r.status_code == 400
+        assert "error" in json.loads(r.data)
+
+    def test_rejects_short_master_password(self, client):
+        """Fort en classes mais < 12 caractères → refusé sur la longueur.
+        RED avant M6 : minimum était 8 → 11 car. acceptés → 201."""
+        r = self._register(client, "qP4#nZ7!wR2")  # 11 car.
+        assert r.status_code == 400
+        assert "12" in json.loads(r.data)["error"]
+
+    def test_accepts_strong_master_password(self, client):
+        """Master password réellement fort (zxcvbn=4, >= 12) → accepté (201)."""
+        r = self._register(client, STRONG_TEST_PASSWORD)
+        assert r.status_code == 201
