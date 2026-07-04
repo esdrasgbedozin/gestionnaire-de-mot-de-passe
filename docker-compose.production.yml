@@ -75,6 +75,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/security-headers.conf:/etc/nginx/security-headers.conf:ro  # en-têtes sécurité (source unique)
       - ./ssl:/etc/nginx/ssl:ro  # Certificats SSL
     depends_on:
       - frontend

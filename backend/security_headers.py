@@ -10,49 +10,44 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class SecurityHeaders:
     """Gestionnaire des headers de sécurité"""
-    
+
     # Configuration des headers de sécurité
     SECURITY_HEADERS = {
         # Protection XSS
-        'X-XSS-Protection': '1; mode=block',
-        
+        "X-XSS-Protection": "1; mode=block",
         # Prévention du MIME type sniffing
-        'X-Content-Type-Options': 'nosniff',
-        
+        "X-Content-Type-Options": "nosniff",
         # Protection contre le clickjacking
-        'X-Frame-Options': 'DENY',
-        
+        "X-Frame-Options": "DENY",
         # Référrer policy pour protéger les URLs privées
-        'Referrer-Policy': 'strict-origin-when-cross-origin',
-        
+        "Referrer-Policy": "strict-origin-when-cross-origin",
         # Permissions policy pour contrôler les fonctionnalités du navigateur
-        'Permissions-Policy': (
-            'camera=(), '
-            'microphone=(), '
-            'geolocation=(), '
-            'payment=(), '
-            'usb=(), '
-            'magnetometer=(), '
-            'gyroscope=(), '
-            'accelerometer=(), '
-            'ambient-light-sensor=(), '
-            'autoplay=(), '
-            'display-capture=(), '
-            'fullscreen=(self), '
-            'clipboard-write=()'
+        "Permissions-Policy": (
+            "camera=(), "
+            "microphone=(), "
+            "geolocation=(), "
+            "payment=(), "
+            "usb=(), "
+            "magnetometer=(), "
+            "gyroscope=(), "
+            "accelerometer=(), "
+            "ambient-light-sensor=(), "
+            "autoplay=(), "
+            "display-capture=(), "
+            "fullscreen=(self), "
+            "clipboard-write=()"
         ),
-        
         # Cache control pour les données sensibles
-        'Cache-Control': 'no-cache, no-store, must-revalidate, private',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        
+        "Cache-Control": "no-cache, no-store, must-revalidate, private",
+        "Pragma": "no-cache",
+        "Expires": "0",
         # Server header removal (sécurité par obscurité)
-        'Server': 'SecureServer/1.0'
+        "Server": "SecureServer/1.0",
     }
-    
+
     # CSP pour production (à ajuster selon les besoins)
     CSP_POLICY_PRODUCTION = (
         "default-src 'self'; "
@@ -66,7 +61,7 @@ class SecurityHeaders:
         "form-action 'self'; "
         "upgrade-insecure-requests"
     )
-    
+
     # CSP pour développement (plus permissif)
     CSP_POLICY_DEVELOPMENT = (
         "default-src 'self' 'unsafe-inline' 'unsafe-eval'; "
@@ -77,83 +72,92 @@ class SecurityHeaders:
         "connect-src 'self' localhost:* 127.0.0.1:* ws://localhost:* ws://127.0.0.1:*; "
         "frame-ancestors 'none'"
     )
-    
+
     # HSTS pour HTTPS (uniquement en production avec HTTPS)
-    HSTS_HEADER = 'max-age=31536000; includeSubDomains; preload'
+    HSTS_HEADER = "max-age=31536000; includeSubDomains; preload"
 
     @classmethod
-    def get_csp_policy(cls, env='development'):
+    def get_csp_policy(cls, env="development"):
         """Obtenir la politique CSP selon l'environnement"""
-        if env == 'production':
+        if env == "production":
             return cls.CSP_POLICY_PRODUCTION
         return cls.CSP_POLICY_DEVELOPMENT
 
+
 def add_security_headers(response, app_config=None):
-    """Ajouter les headers de sécurité à la réponse"""
-    
-    # Headers de base toujours appliqués
+    """Ajouter les headers de sécurité à la réponse.
+
+    Lot 6 (HSTS) : en PRODUCTION, les en-têtes de sécurité sont émis par nginx
+    à l'edge (source UNIQUE, cf. nginx/security-headers.conf) — Flask s'abstient
+    pour éviter la duplication et l'incohérence (ex. preload). En dev/testing il
+    n'y a pas de nginx frontal : Flask les émet donc toujours.
+    """
+    env = app_config.get("ENVIRONMENT", "development") if app_config else "development"
+    if env == "production":
+        return response
+
+    # Dev/testing : aucun proxy nginx en frontal → Flask émet les en-têtes.
     for header, value in SecurityHeaders.SECURITY_HEADERS.items():
         response.headers[header] = value
-    
-    # CSP selon l'environnement
-    env = app_config.get('ENVIRONMENT', 'development') if app_config else 'development'
-    csp_policy = SecurityHeaders.get_csp_policy(env)
-    response.headers['Content-Security-Policy'] = csp_policy
-    
-    # HSTS en production (clé réelle FORCE_SSL)
-    if (app_config and
-            app_config.get('ENVIRONMENT') == 'production' and
-            app_config.get('FORCE_SSL', False)):
-        response.headers['Strict-Transport-Security'] = SecurityHeaders.HSTS_HEADER
-    
+
+    response.headers["Content-Security-Policy"] = SecurityHeaders.get_csp_policy(env)
+
     # Headers API spécifiques pour les réponses JSON
-    if response.content_type and 'application/json' in response.content_type:
-        # Prévention du cross-site request forgery pour les API
-        response.headers['X-Requested-With'] = 'XMLHttpRequest'
-    
+    if response.content_type and "application/json" in response.content_type:
+        response.headers["X-Requested-With"] = "XMLHttpRequest"
+
     return response
+
 
 def setup_security_headers(app: Flask):
     """Configurer les headers de sécurité pour l'application Flask"""
-    
+
     @app.after_request
     def security_headers(response):
         """Middleware pour ajouter les headers de sécurité"""
         return add_security_headers(response, app.config)
-    
+
     # Configuration HTTPS forcée pour la production
     @app.before_request
     def force_https():
         """Forcer HTTPS en production (sauf /health, appelé en HTTP par le healthcheck)."""
         from flask import request, redirect
 
-        if request.path == '/health':   # exclusion sur le chemin EXACT
+        if request.path == "/health":  # exclusion sur le chemin EXACT
             return None
         # Derrière Nginx (proxy HTTP), X-Forwarded-Proto=https compte comme sécurisé
-        is_secure = request.is_secure or request.headers.get('X-Forwarded-Proto', 'http') == 'https'
-        if (app.config.get('ENVIRONMENT') == 'production' and
-                app.config.get('FORCE_SSL', False) and
-                not is_secure):
-            return redirect(request.url.replace('http://', 'https://', 1), code=301)
-    
+        is_secure = (
+            request.is_secure
+            or request.headers.get("X-Forwarded-Proto", "http") == "https"
+        )
+        if (
+            app.config.get("ENVIRONMENT") == "production"
+            and app.config.get("FORCE_SSL", False)
+            and not is_secure
+        ):
+            return redirect(request.url.replace("http://", "https://", 1), code=301)
+
     # Suppression des headers révélateurs d'information
     @app.after_request
     def remove_server_header(response):
         """Supprimer/modifier les headers qui révèlent des informations sur le serveur"""
         # Le header 'Server' est déjà remplacé dans SECURITY_HEADERS
         # Supprimer d'autres headers potentiellement révélateurs
-        headers_to_remove = ['X-Powered-By', 'X-Runtime']
+        headers_to_remove = ["X-Powered-By", "X-Runtime"]
         for header in headers_to_remove:
             response.headers.pop(header, None)
-        
+
         return response
-    
-    logger.info(f"Security headers configured for environment: {app.config.get('ENV', 'development')}")
+
+    logger.info(
+        f"Security headers configured for environment: {app.config.get('ENV', 'development')}"
+    )
     return app
+
 
 def create_nginx_config():
     """Générer une configuration Nginx avec headers de sécurité pour la production"""
-    
+
     nginx_config = """
 # Configuration Nginx pour la production avec headers de sécurité
 server {
@@ -227,12 +231,13 @@ server {
     }
 }
 """
-    
+
     return nginx_config
+
 
 def create_docker_compose_https():
     """Configuration Docker Compose avec HTTPS"""
-    
+
     docker_compose = """
 version: '3.8'
 
@@ -287,5 +292,5 @@ services:
 volumes:
   postgres_data:
 """
-    
+
     return docker_compose
