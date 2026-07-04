@@ -20,7 +20,7 @@ pyotp==2.9.0  # Pour 2FA si implémenté plus tard
 
 # Validation et utilitaires
 email-validator==2.0.0
-bleach==6.0.0  # XSS protection and HTML sanitization
+bleach==6.4.0  # XSS protection and HTML sanitization (M5 : CVE GHSA-8rfp-98v4-mmr6 / GHSA-gj48-438w-jh9v)
 python-dotenv==1.0.0
 requests==2.31.0
 
