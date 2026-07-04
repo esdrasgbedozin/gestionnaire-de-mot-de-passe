@@ -222,6 +222,7 @@ def login():
         
         # Vérifier si le compte est actif
         if not user.is_active:
+            EncryptionService.waste_argon2()  # timing égalisé (D1) : coût payé inconditionnellement
             log_audit_event(
                 user_id=user.id,
                 action='LOGIN_FAILED',
@@ -237,6 +238,7 @@ def login():
         if locked_until is not None and locked_until.tzinfo is None:
             locked_until = locked_until.replace(tzinfo=timezone.utc)
         if locked_until is not None and datetime.now(timezone.utc) < locked_until:
+            EncryptionService.waste_argon2()  # timing égalisé (D1) : coût payé inconditionnellement
             log_audit_event(
                 user_id=user.id,
                 action='LOGIN_FAILED',

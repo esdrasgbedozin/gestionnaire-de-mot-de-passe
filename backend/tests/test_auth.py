@@ -454,3 +454,52 @@ class TestRefreshRotation:
     def test_refresh_empty_body_400(self, client):
         r = client.post("/api/auth/refresh", data="", content_type="application/json")
         assert r.status_code == 400
+
+
+class TestLoginTimingEqualization:
+    """D1 : tous les chemins d'échec du login paient un coût Argon2 équivalent (anti-oracle timing)."""
+
+    def _spy_derive_kek(self, monkeypatch):
+        calls = {"n": 0}
+        real = EncryptionService.derive_kek
+
+        def spy(*a, **k):
+            calls["n"] += 1
+            return real(*a, **k)
+
+        monkeypatch.setattr(EncryptionService, "derive_kek", spy)
+        return calls
+
+    def _login(self, client):
+        return client.post(
+            "/api/auth/login",
+            data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+            content_type="application/json",
+        )
+
+    def test_locked_account_pays_argon2(self, client, sample_user, app, monkeypatch):
+        import datetime as dt
+
+        with app.app_context():
+            u = User.query.filter_by(email="test@example.com").first()
+            u.locked_until = dt.datetime.now(dt.timezone.utc) + dt.timedelta(minutes=30)
+            db.session.commit()
+        calls = self._spy_derive_kek(monkeypatch)
+
+        r = self._login(client)
+        assert r.status_code == 401
+        assert "locked" in r.data.decode().lower()   # verrouillage maintenu
+        assert calls["n"] >= 1                        # coût Argon2 payé sur ce chemin
+
+    def test_disabled_account_pays_argon2(self, client, sample_user, app, monkeypatch):
+        with app.app_context():
+            u = User.query.filter_by(email="test@example.com").first()
+            u.is_active = False
+            db.session.commit()
+        calls = self._spy_derive_kek(monkeypatch)
+
+        r = self._login(client)
+        assert r.status_code == 401
+        assert "disabled" in r.data.decode().lower()  # désactivation maintenue
+        assert calls["n"] >= 1
+
