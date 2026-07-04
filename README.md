@@ -99,13 +99,26 @@ gestionnaire-de-mot-de-passe/
 
 ## 🛡️ Sécurité
 
-**Score de sécurité : A+ (94/100)**
+### Architecture zero-knowledge (chiffrement au repos)
 
-✅ **Tests réalisés :**
-- Injection SQL → **BLOQUÉE**
-- XSS/CSRF → **PROTÉGÉ**
-- Brute Force → **LIMITÉ**
-- Chiffrement → **AES-256-GCM**
+Le serveur **ne peut pas** déchiffrer le coffre sans le master password de l'utilisateur :
+
+- Chaque coffre est protégé par une **VMK** (Vault Master Key, 256 bits aléatoires) qui chiffre les entrées en **AES-256-GCM**.
+- La VMK n'est jamais stockée en clair : elle est **enveloppée** par une **KEK** dérivée du master password via **Argon2id** (mémoire-dur, sel par utilisateur). Seul `Argon2id(master_password, sel)` permet de la déballer.
+- Le **master password n'est jamais stocké** (ni en clair, ni haché) : l'authentification = déballage réussi de la VMK (le tag GCM prouve l'identité). Un dump de la base ne révèle donc que des données chiffrées.
+- Pendant une session, la VMK réside uniquement en **mémoire (Redis, sans persistance disque)** ; sa révocation évince la clé.
+- **Conséquence** : si le master password est oublié, le coffre est **irrécupérable** (par conception).
+
+### Autres protections
+
+- **Force du master password** évaluée par zxcvbn (score ≥ 3 exigé), longueur ≥ 12.
+- **Rate-limiting** backé Redis (login, register, refresh, suppression de compte).
+- **Ré-authentification** (déballage VMK + confirmation) exigée avant la suppression du compte.
+- En-têtes de sécurité (CSP stricte, HSTS en prod), protection XSS (bleach) et injection SQL (ORM paramétré).
+
+### `EMERGENCY_RESET_KEY`
+
+Cette clé d'urgence autorise **uniquement** l'endpoint admin de **réinitialisation du rate-limiter** (débloquer une IP faussement bloquée). Elle **ne donne aucun accès au coffre** ni aux données chiffrées.
 
 ```bash
 # Audit complet
