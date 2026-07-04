@@ -17,6 +17,7 @@ from app.services.session_key_store import SessionKeyStore
 from rate_limiter import RateLimiter
 from app.services.session_service import RefreshRegistry
 from app.services.encryption_service import EncryptionService
+from tests.passwords import STRONG_TEST_PASSWORD
 
 
 @pytest.fixture
@@ -53,7 +54,7 @@ def sample_user(app):
     """Fixture pour créer un utilisateur de test"""
     with app.app_context():
         user = User(email="test@example.com", username="testuser")
-        salt, wrapped, vmk = EncryptionService.provision_vault("TestPassword123!")
+        salt, wrapped, vmk = EncryptionService.provision_vault(STRONG_TEST_PASSWORD)
         user.kdf_salt = salt
         user.wrapped_vault_key = wrapped
         db.session.add(user)
@@ -69,7 +70,7 @@ class TestUserRegistration:
         data = {
             "username": "newuser",
             "email": "newuser@example.com",
-            "password": "ValidPassword123!",
+            "password": STRONG_TEST_PASSWORD,
         }
 
         response = client.post(
@@ -88,7 +89,7 @@ class TestUserRegistration:
         data = {
             "username": "differentuser",
             "email": "test@example.com",  # Email déjà utilisé
-            "password": "ValidPassword123!",
+            "password": STRONG_TEST_PASSWORD,
         }
 
         response = client.post(
@@ -104,7 +105,7 @@ class TestUserRegistration:
         data = {
             "username": "testuser",  # Username déjà utilisé
             "email": "different@example.com",
-            "password": "ValidPassword123!",
+            "password": STRONG_TEST_PASSWORD,
         }
 
         response = client.post(
@@ -137,7 +138,7 @@ class TestUserLogin:
 
     def test_login_valid_credentials(self, client, sample_user):
         """Test connexion avec identifiants valides"""
-        data = {"email": "test@example.com", "password": "TestPassword123!"}
+        data = {"email": "test@example.com", "password": STRONG_TEST_PASSWORD}
 
         response = client.post(
             "/api/auth/login", data=json.dumps(data), content_type="application/json"
@@ -195,7 +196,7 @@ class TestUserLogout:
     def test_logout_success(self, client, sample_user):
         """Test déconnexion réussie"""
         # D'abord se connecter pour obtenir un token
-        login_data = {"email": "test@example.com", "password": "TestPassword123!"}
+        login_data = {"email": "test@example.com", "password": STRONG_TEST_PASSWORD}
         login_response = client.post(
             "/api/auth/login",
             data=json.dumps(login_data),
@@ -222,7 +223,7 @@ class TestTokenRefresh:
     def test_refresh_token_success(self, client, sample_user):
         """Test rafraîchissement de token réussi"""
         # Se connecter pour obtenir un refresh token
-        login_data = {"email": "test@example.com", "password": "TestPassword123!"}
+        login_data = {"email": "test@example.com", "password": STRONG_TEST_PASSWORD}
         login_response = client.post(
             "/api/auth/login",
             data=json.dumps(login_data),
@@ -295,7 +296,9 @@ JWT_TEST_SECRET = "test-secret-key-for-testing-only"
 def _login(client):
     r = client.post(
         "/api/auth/login",
-        data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+        data=json.dumps(
+            {"email": "test@example.com", "password": STRONG_TEST_PASSWORD}
+        ),
         content_type="application/json",
     )
     return json.loads(r.data)["tokens"]["access_token"]
@@ -304,19 +307,25 @@ def _login(client):
 class TestSessionModel:
     """H2.2 : session stable, sid sur les tokens, VMK ancrée, révocation par session."""
 
-    def test_authenticated_request_refused_when_session_deleted(self, client, sample_user, app):
+    def test_authenticated_request_refused_when_session_deleted(
+        self, client, sample_user, app
+    ):
         """CONDITION Q1 : access token encore valide MAIS session supprimée → refus."""
         access = _login(client)
         sid = pyjwt.decode(access, JWT_TEST_SECRET, algorithms=["HS256"])["sid"]
 
         # La requête authentifiée passe tant que la session existe
-        ok = client.get("/api/passwords/", headers={"Authorization": f"Bearer {access}"})
+        ok = client.get(
+            "/api/passwords/", headers={"Authorization": f"Bearer {access}"}
+        )
         assert ok.status_code == 200
 
         # On supprime la session (révocation) — le token JWT reste pourtant valide
         app.redis.delete(f"session:{sid}")
 
-        refused = client.get("/api/passwords/", headers={"Authorization": f"Bearer {access}"})
+        refused = client.get(
+            "/api/passwords/", headers={"Authorization": f"Bearer {access}"}
+        )
         assert refused.status_code in (401, 423)
 
     def test_vmk_key_stable_during_session(self, client, sample_user, app):
@@ -340,7 +349,9 @@ class TestSessionModel:
         cr = client.post(
             "/api/passwords/",
             headers=h,
-            data=json.dumps({"site_name": "example.com", "username": "alice", "password": secret}),
+            data=json.dumps(
+                {"site_name": "example.com", "username": "alice", "password": secret}
+            ),
             content_type="application/json",
         )
         assert cr.status_code == 201
@@ -361,7 +372,9 @@ class TestAuthBascule:
         assert not hasattr(User, "check_password")
         r = client.post(
             "/api/auth/login",
-            data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+            data=json.dumps(
+                {"email": "test@example.com", "password": STRONG_TEST_PASSWORD}
+            ),
             content_type="application/json",
         )
         assert r.status_code == 200
@@ -371,7 +384,9 @@ class TestAuthBascule:
         """Mauvais master password → unlock échoue → 401."""
         r = client.post(
             "/api/auth/login",
-            data=json.dumps({"email": "test@example.com", "password": "WrongPassword123!"}),
+            data=json.dumps(
+                {"email": "test@example.com", "password": "WrongPassword123!"}
+            ),
             content_type="application/json",
         )
         assert r.status_code == 401
@@ -403,7 +418,9 @@ class TestRefreshRotation:
     def _login_tokens(self, client):
         r = client.post(
             "/api/auth/login",
-            data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+            data=json.dumps(
+                {"email": "test@example.com", "password": STRONG_TEST_PASSWORD}
+            ),
             content_type="application/json",
         )
         return json.loads(r.data)["tokens"]
@@ -415,7 +432,9 @@ class TestRefreshRotation:
             content_type="application/json",
         )
 
-    def test_rotation_old_refresh_invalid_and_vmk_not_moved(self, client, sample_user, app):
+    def test_rotation_old_refresh_invalid_and_vmk_not_moved(
+        self, client, sample_user, app
+    ):
         toks = self._login_tokens(client)
         keys_before = sorted(app.redis.keys("session:*"))
         assert len(keys_before) == 1  # une seule clé VMK
@@ -441,7 +460,9 @@ class TestRefreshRotation:
         replay = self._refresh(client, toks["refresh_token"])
         assert replay.status_code == 401
         # Toute la session est révoquée → un access token de cette session est refusé
-        refused = client.get("/api/passwords/", headers={"Authorization": f"Bearer {access0}"})
+        refused = client.get(
+            "/api/passwords/", headers={"Authorization": f"Bearer {access0}"}
+        )
         assert refused.status_code in (401, 423)
 
     def test_new_refresh_after_rotation_works(self, client, sample_user):
@@ -473,7 +494,9 @@ class TestLoginTimingEqualization:
     def _login(self, client):
         return client.post(
             "/api/auth/login",
-            data=json.dumps({"email": "test@example.com", "password": "TestPassword123!"}),
+            data=json.dumps(
+                {"email": "test@example.com", "password": STRONG_TEST_PASSWORD}
+            ),
             content_type="application/json",
         )
 
@@ -488,8 +511,8 @@ class TestLoginTimingEqualization:
 
         r = self._login(client)
         assert r.status_code == 401
-        assert "locked" in r.data.decode().lower()   # verrouillage maintenu
-        assert calls["n"] >= 1                        # coût Argon2 payé sur ce chemin
+        assert "locked" in r.data.decode().lower()  # verrouillage maintenu
+        assert calls["n"] >= 1  # coût Argon2 payé sur ce chemin
 
     def test_disabled_account_pays_argon2(self, client, sample_user, app, monkeypatch):
         with app.app_context():
@@ -522,18 +545,30 @@ class TestRegisterEnumerationHardening:
         calls = self._spy_derive_kek(monkeypatch)
         r = client.post(
             "/api/auth/register",
-            data=json.dumps({"username": "someoneelse", "email": "test@example.com", "password": "ValidPassword123!"}),
+            data=json.dumps(
+                {
+                    "username": "someoneelse",
+                    "email": "test@example.com",
+                    "password": STRONG_TEST_PASSWORD,
+                }
+            ),
             content_type="application/json",
         )
-        assert r.status_code == 409                                  # Q5 : message/statut inchangés
+        assert r.status_code == 409  # Q5 : message/statut inchangés
         assert "already registered" in r.data.decode().lower()
-        assert calls["n"] >= 1                                       # timing égalisé (comme le succès)
+        assert calls["n"] >= 1  # timing égalisé (comme le succès)
 
     def test_username_conflict_pays_argon2(self, client, sample_user, monkeypatch):
         calls = self._spy_derive_kek(monkeypatch)
         r = client.post(
             "/api/auth/register",
-            data=json.dumps({"username": "testuser", "email": "brand-new@example.com", "password": "ValidPassword123!"}),
+            data=json.dumps(
+                {
+                    "username": "testuser",
+                    "email": "brand-new@example.com",
+                    "password": STRONG_TEST_PASSWORD,
+                }
+            ),
             content_type="application/json",
         )
         assert r.status_code == 409
@@ -545,7 +580,13 @@ class TestRegisterEnumerationHardening:
         statuses = [
             client.post(
                 "/api/auth/register",
-                data=json.dumps({"username": f"u{i}", "email": f"u{i}@example.com", "password": "ValidPassword123!"}),
+                data=json.dumps(
+                    {
+                        "username": f"u{i}",
+                        "email": f"u{i}@example.com",
+                        "password": STRONG_TEST_PASSWORD,
+                    }
+                ),
                 content_type="application/json",
             ).status_code
             for i in range(13)
