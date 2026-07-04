@@ -31,7 +31,7 @@ pytest-cov==4.1.0
 fakeredis==2.21.0     # Redis en memoire pour les tests
 
 # Production et monitoring
-gunicorn==21.2.0
+gunicorn==22.0.0  # M5 : CVE-2024-1135 / CVE-2024-6827 (HTTP request smuggling)
 python-json-logger==2.0.7
 
 # Sécurité renforcée
