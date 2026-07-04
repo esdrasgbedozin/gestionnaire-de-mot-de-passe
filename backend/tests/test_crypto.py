@@ -58,12 +58,13 @@ from app.services.encryption_service import EncryptionService as E
 class TestCryptoPrimitives:
     """Incrément (b) : KEK Argon2id + VMK enveloppée + chiffrement d'entrée."""
 
-    SALT = b'0123456789abcdef'          # 16 octets
-    SALT2 = b'fedcba9876543210'         # 16 octets, différent
-    MP = 'Correct-Master-Password-42'
+    SALT = b"0123456789abcdef"  # 16 octets
+    SALT2 = b"fedcba9876543210"  # 16 octets, différent
+    MP = "Correct-Master-Password-42"
 
     def _nonce(self, token):
-        return base64.b64decode(token.encode())[:E.GCM_NONCE_LENGTH]
+        # format v1 : saute l'octet de version pour extraire le nonce
+        return base64.b64decode(token.encode())[1 : 1 + E.GCM_NONCE_LENGTH]
 
     def test_kek_deterministic(self):
         """Même (master password, sel) → même KEK."""
@@ -85,7 +86,7 @@ class TestCryptoPrimitives:
     def test_wrong_password_unwrap_fails(self):
         """Mauvais master password → unwrap échoue (tag GCM), aucune VMK silencieuse."""
         kek_good = E.derive_kek(self.MP, self.SALT)
-        kek_bad = E.derive_kek('Wrong-Master-Password', self.SALT)
+        kek_bad = E.derive_kek("Wrong-Master-Password", self.SALT)
         wrapped = E.wrap_vmk(E.generate_vmk(), kek_good)
         with pytest.raises(ValueError):
             E.unwrap_vmk(wrapped, kek_bad)
@@ -93,16 +94,16 @@ class TestCryptoPrimitives:
     def test_entry_unique_iv_and_roundtrip(self):
         """Deux chiffrements du même clair → ciphertexts différents (IV unique) ; round-trip OK."""
         vmk = E.generate_vmk()
-        c1 = E.encrypt_entry('s3cr3t-value', vmk)
-        c2 = E.encrypt_entry('s3cr3t-value', vmk)
-        assert c1 != c2                                   # IV différent → ciphertext différent
-        assert self._nonce(c1) != self._nonce(c2)         # nonces distincts
-        assert E.decrypt_entry(c1, vmk) == 's3cr3t-value'
-        assert E.decrypt_entry(c2, vmk) == 's3cr3t-value'
+        c1 = E.encrypt_entry("s3cr3t-value", vmk)
+        c2 = E.encrypt_entry("s3cr3t-value", vmk)
+        assert c1 != c2  # IV différent → ciphertext différent
+        assert self._nonce(c1) != self._nonce(c2)  # nonces distincts
+        assert E.decrypt_entry(c1, vmk) == "s3cr3t-value"
+        assert E.decrypt_entry(c2, vmk) == "s3cr3t-value"
 
     def test_entry_wrong_vmk_fails(self):
         """Déchiffrer une entrée avec une mauvaise VMK échoue proprement."""
-        c = E.encrypt_entry('value', E.generate_vmk())
+        c = E.encrypt_entry("value", E.generate_vmk())
         with pytest.raises(ValueError):
             E.decrypt_entry(c, E.generate_vmk())
 
@@ -111,7 +112,7 @@ class TestCryptoPrimitives:
         kek = E.derive_kek(self.MP, self.SALT)
         vmk = E.generate_vmk()
         wraps = {self._nonce(E.wrap_vmk(vmk, kek)) for _ in range(5)}
-        entries = {self._nonce(E.encrypt_entry('x', vmk)) for _ in range(5)}
+        entries = {self._nonce(E.encrypt_entry("x", vmk)) for _ in range(5)}
         assert len(wraps) == 5
         assert len(entries) == 5
 
@@ -132,34 +133,34 @@ class TestSessionKeyStore:
     def test_store_get_roundtrip(self):
         store = _store()
         vmk = E.generate_vmk()
-        store.store_session('sess-1', vmk, 60, 60)
-        assert store.get_vmk('sess-1') == vmk
+        store.store_session("sess-1", vmk, 60, 60)
+        assert store.get_vmk("sess-1") == vmk
 
     def test_ttl_is_applied(self):
         store = _store()
-        store.store_session('sess-ttl', E.generate_vmk(), 60, 60)
-        ttl = store._client.ttl('session:sess-ttl')
+        store.store_session("sess-ttl", E.generate_vmk(), 60, 60)
+        ttl = store._client.ttl("session:sess-ttl")
         assert 0 < ttl <= 60
 
     def test_evict_removes_vmk(self):
         """Logout → VMK évincée → serveur incapable de déchiffrer."""
         store = _store()
-        store.store_session('sess-2', E.generate_vmk(), 60, 60)
-        store.evict('sess-2')
-        assert store.get_vmk('sess-2') is None
+        store.store_session("sess-2", E.generate_vmk(), 60, 60)
+        store.evict("sess-2")
+        assert store.get_vmk("sess-2") is None
 
     def test_absent_raises_vault_locked(self):
         store = _store()
         with pytest.raises(VaultLockedError):
-            store.get_required_vmk('does-not-exist')
+            store.get_required_vmk("does-not-exist")
 
     def test_expiry_then_locked(self):
         """Expiration TTL (simulée) → VMK absente → VaultLockedError (→ 423, pas 500)."""
         store = _store()
-        store.store_session('sess-exp', E.generate_vmk(), 1, 1)
-        store._client.delete('session:sess-exp')  # équivalent à l'expiration du TTL
+        store.store_session("sess-exp", E.generate_vmk(), 1, 1)
+        store._client.delete("session:sess-exp")  # équivalent à l'expiration du TTL
         with pytest.raises(VaultLockedError):
-            store.get_required_vmk('sess-exp')
+            store.get_required_vmk("sess-exp")
 
     def test_multi_worker_shared(self):
         """Une VMK écrite par un worker est lisible par un autre (même Redis)."""
@@ -167,30 +168,30 @@ class TestSessionKeyStore:
         worker_a = _store(server)
         worker_b = _store(server)
         vmk = E.generate_vmk()
-        worker_a.store_session('shared', vmk, 60, 60)
-        assert worker_b.get_vmk('shared') == vmk
+        worker_a.store_session("shared", vmk, 60, 60)
+        assert worker_b.get_vmk("shared") == vmk
 
     def test_no_argon2_re_derivation_on_retrieval(self, monkeypatch):
         """PREUVE : la récupération de la VMK ne re-dérive JAMAIS la KEK (Argon2id)."""
         store = _store()
         vmk = E.generate_vmk()
-        store.store_session('perf', vmk, 60, 60)
+        store.store_session("perf", vmk, 60, 60)
 
-        calls = {'n': 0}
+        calls = {"n": 0}
         real = E.derive_kek
 
         def spy(*a, **k):
-            calls['n'] += 1
+            calls["n"] += 1
             return real(*a, **k)
 
-        monkeypatch.setattr(E, 'derive_kek', spy)
+        monkeypatch.setattr(E, "derive_kek", spy)
         t0 = time.perf_counter()
         for _ in range(50):
-            assert store.get_vmk('perf') == vmk
+            assert store.get_vmk("perf") == vmk
         elapsed_ms = (time.perf_counter() - t0) * 1000
 
-        assert calls['n'] == 0          # aucune dérivation Argon2id sur le chemin de lecture
-        assert elapsed_ms < 149         # 50 lectures < le coût d'UNE seule dérivation Argon2id
+        assert calls["n"] == 0  # aucune dérivation Argon2id sur le chemin de lecture
+        assert elapsed_ms < 149  # 50 lectures < le coût d'UNE seule dérivation Argon2id
 
 
 class TestVaultLockedResponse:
@@ -200,13 +201,13 @@ class TestVaultLockedResponse:
         store = _store()
 
         def locked_route():
-            store.get_required_vmk('no-session')  # lève VaultLockedError
-            return {'ok': True}
+            store.get_required_vmk("no-session")  # lève VaultLockedError
+            return {"ok": True}
 
-        app.add_url_rule('/__vault_locked_test__', 'vault_locked_test', locked_route)
-        resp = app.test_client().get('/__vault_locked_test__')
+        app.add_url_rule("/__vault_locked_test__", "vault_locked_test", locked_route)
+        resp = app.test_client().get("/__vault_locked_test__")
         assert resp.status_code == 423
-        assert json.loads(resp.data)['code'] == 'vault_locked'
+        assert json.loads(resp.data)["code"] == "vault_locked"
 
 
 import hashlib
@@ -217,22 +218,24 @@ from app.models import Password
 class TestC1Proofs:
     """Les 4 preuves obligatoires que C1 (zero-knowledge at rest) est corrigée."""
 
-    MP = 'Master-Correct-Horse-9!'
-    SECRET = 'my-vault-entry-s3cret-value'
+    MP = "Master-Correct-Horse-9!"
+    SECRET = "my-vault-entry-s3cret-value"
 
     def _provision_user_with_entry(self, app):
         """État réaliste : un User provisionné + une entrée chiffrée, persistés en base."""
         with app.app_context():
             salt, wrapped, vmk = E.provision_vault(self.MP)
-            user = User(email='proof@example.com', username='proof')
+            user = User(email="proof@example.com", username="proof")
             user.kdf_salt = salt
             user.wrapped_vault_key = wrapped
             db.session.add(user)
             db.session.commit()
             ciphertext = E.encrypt_entry(self.SECRET, vmk)
             entry = Password(
-                user_id=user.id, site_name='example.com',
-                username='alice', encrypted_password=ciphertext,
+                user_id=user.id,
+                site_name="example.com",
+                username="alice",
+                encrypted_password=ciphertext,
             )
             db.session.add(entry)
             db.session.commit()
@@ -283,7 +286,7 @@ class TestC1Proofs:
         uid, eid = self._provision_user_with_entry(app)
         with app.app_context():
             user = User.query.get(uid)
-            user.email = 'brand-new-email@example.com'
+            user.email = "brand-new-email@example.com"
             db.session.commit()
 
             user = User.query.get(uid)
@@ -294,7 +297,7 @@ class TestC1Proofs:
     def test_d_master_password_change_no_reencryption(self, app):
         """(d) Changement de master password → entrées NON re-chiffrées (seule la VMK l'est)."""
         uid, eid = self._provision_user_with_entry(app)
-        new_mp = 'A-Totally-New-Master-Pw-42!'
+        new_mp = "A-Totally-New-Master-Pw-42!"
         with app.app_context():
             user = User.query.get(uid)
             entry = Password.query.get(eid)
@@ -325,3 +328,60 @@ class TestSharedRedis:
     def test_session_store_uses_shared_app_redis(self, app):
         """Le session key store doit pointer sur le client Redis partagé app.redis."""
         assert app.redis is app.session_key_store._client
+
+
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import secrets as _s
+
+
+def _legacy_v0_blob(key: bytes, plaintext: bytes, first_nonce_byte=None) -> str:
+    """Fabrique un blob AU FORMAT v0 (sans octet de version) : base64(nonce||ct||tag).
+    first_nonce_byte permet de forcer le 1er octet du nonce (ex. 0x01) pour tester
+    le cas ambigu où un v0 ressemble à un v1."""
+    nonce = _s.token_bytes(E.GCM_NONCE_LENGTH)
+    if first_nonce_byte is not None:
+        nonce = bytes([first_nonce_byte]) + nonce[1:]
+    ct = AESGCM(key).encrypt(nonce, plaintext, None)
+    return base64.b64encode(nonce + ct).decode("utf-8")
+
+
+class TestVersionedFormatA:
+    """Incrément B6 (a) : format v1 (octet de version) + routage/fallback, pur
+    no-op de compatibilité (AAD encore None). Le tag GCM arbitre ; l'octet n'est
+    qu'un fast-path. Aucune donnée v0 ne devient illisible."""
+
+    def test_new_blob_is_v1_version_prefixed(self):
+        """Un blob fraîchement chiffré est au format v1 : 0x01 || nonce(12) || ct || tag(16)."""
+        vmk = E.generate_vmk()
+        raw = base64.b64decode(E.encrypt_entry("x", vmk).encode())
+        assert raw[0] == 0x01  # octet de version
+        # longueur = 1 (version) + 12 (nonce) + 1 (clair) + 16 (tag) = 30
+        assert (
+            len(raw) == 1 + E.GCM_NONCE_LENGTH + 1 + 16
+        )  # RED avant (a) : 29 (pas d'octet)
+
+    def test_v1_roundtrip(self):
+        vmk = E.generate_vmk()
+        assert E.decrypt_entry(E.encrypt_entry("s3cret-v1", vmk), vmk) == "s3cret-v1"
+
+    def test_legacy_v0_blob_still_decrypts(self):
+        """Compat : un blob v0 (écrit avant (a)) reste déchiffrable."""
+        vmk = E.generate_vmk()
+        v0 = _legacy_v0_blob(vmk, b"legacy-secret")
+        assert E.decrypt_entry(v0, vmk) == "legacy-secret"
+
+    def test_ambiguous_v0_nonce_starting_0x01_decrypts_via_fallback(self):
+        """Cas critique : un v0 dont le nonce commence par 0x01 (1/256) — le fast-path
+        v1 échoue (tag) puis le FALLBACK v0 réussit. Prouve que l'octet n'est qu'un
+        indice, jamais une source de vérité."""
+        vmk = E.generate_vmk()
+        v0 = _legacy_v0_blob(vmk, b"ambiguous-legacy", first_nonce_byte=0x01)
+        assert base64.b64decode(v0.encode())[0] == 0x01  # ressemble à un v1
+        assert E.decrypt_entry(v0, vmk) == "ambiguous-legacy"  # mais déchiffré en v0
+
+    def test_wrapped_vmk_v0_still_unwraps(self):
+        """Compat sur le wrapped_VMK aussi (même helper AEAD)."""
+        kek = E.derive_kek("Master-Correct-Horse-9!", b"0123456789abcdef")
+        vmk = E.generate_vmk()
+        v0_wrapped = _legacy_v0_blob(kek, vmk)  # VMK enveloppée au format v0
+        assert E.unwrap_vmk(v0_wrapped, kek) == vmk

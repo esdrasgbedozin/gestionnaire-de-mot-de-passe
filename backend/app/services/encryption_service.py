@@ -23,9 +23,16 @@ class EncryptionService:
     ARGON2_PARALLELISM = int(os.environ.get("ARGON2_PARALLELISM", 2))
     ARGON2_KEY_LENGTH = 32  # KEK : 256 bits
 
+    # Octet de version du format AEAD (B6). v1 préfixe un octet ; v0 (legacy) n'en
+    # a pas (son 1er octet est un octet de nonce aléatoire). L'octet n'est qu'un
+    # FAST-PATH de routage : le tag GCM reste l'arbitre (fallback v0 si le tag v1
+    # échoue), si bien qu'aucune donnée v0 ne devient illisible.
+    AEAD_VERSION_V1 = 0x01
+
     # ==================================================================
     # Zero-knowledge (Lot 3 / C1) : KEK Argon2id + VMK enveloppee (AES-GCM)
-    # Format AES-GCM commun : base64( nonce(12) || ciphertext || tag(16) )
+    # Format v1 : base64( 0x01 || nonce(12) || ciphertext || tag(16) )
+    # Format v0 (legacy) : base64( nonce(12) || ciphertext || tag(16) )
     # ==================================================================
 
     @staticmethod
@@ -56,19 +63,38 @@ class EncryptionService:
 
     @staticmethod
     def _aesgcm_encrypt(key: bytes, plaintext: bytes) -> str:
-        """AES-256-GCM avec nonce frais. Retourne base64(nonce || ciphertext || tag)."""
+        """AES-256-GCM, nonce frais, format v1.
+
+        Retourne base64( 0x01 || nonce(12) || ciphertext || tag ). B6 (a) : l'AAD
+        reste None (aucun binding de contexte à ce stade — no-op de compatibilité).
+        """
         nonce = secrets.token_bytes(EncryptionService.GCM_NONCE_LENGTH)
         ct = AESGCM(key).encrypt(nonce, plaintext, None)  # ct = ciphertext || tag
-        return base64.b64encode(nonce + ct).decode("utf-8")
+        blob = bytes([EncryptionService.AEAD_VERSION_V1]) + nonce + ct
+        return base64.b64encode(blob).decode("utf-8")
 
     @staticmethod
     def _aesgcm_decrypt(key: bytes, token: str) -> bytes:
-        """Inverse de _aesgcm_encrypt. Leve ValueError si le tag GCM est invalide."""
+        """Inverse de _aesgcm_encrypt, routage v1/v0.
+
+        Le tag GCM est l'ARBITRE ; l'octet de version n'est qu'un fast-path :
+          - 1er octet == 0x01 → tente v1 (nonce à l'offset 1) ; si le tag échoue,
+            c'est peut-être un v0 dont le nonce commençait par 0x01 → fallback v0.
+          - sinon → v0 directement (un v1 commence toujours par 0x01).
+        Un faux positif (v1 acceptant un v0) est à 2^-128 → jamais. Aucune donnée
+        v0 ne devient illisible.
+        """
         raw = base64.b64decode(token.encode("utf-8"))
-        nonce = raw[: EncryptionService.GCM_NONCE_LENGTH]
-        ct = raw[EncryptionService.GCM_NONCE_LENGTH :]
+        N = EncryptionService.GCM_NONCE_LENGTH
+
+        if raw and raw[0] == EncryptionService.AEAD_VERSION_V1:
+            try:
+                return AESGCM(key).decrypt(raw[1 : 1 + N], raw[1 + N :], None)
+            except Exception:
+                pass  # peut-être un v0 dont le nonce débute par 0x01 → fallback
+
         try:
-            return AESGCM(key).decrypt(nonce, ct, None)
+            return AESGCM(key).decrypt(raw[:N], raw[N:], None)
         except Exception:
             # Ne JAMAIS divulguer la cle / le master password dans l'erreur
             raise ValueError(
