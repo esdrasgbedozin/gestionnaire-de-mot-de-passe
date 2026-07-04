@@ -436,15 +436,14 @@ def refresh():
 
 @auth_bp.route("/me", methods=["GET"])
 @token_required
-def get_current_user(current_user_id):
-    """Obtenir les informations de l'utilisateur connecté"""
+def get_current_user(current_user):
+    """Obtenir les informations de l'utilisateur connecté.
+
+    A3 : token_required fournit déjà l'OBJET User authentifié en 1er argument.
+    L'ancienne signature (current_user_id) refaisait User.query.get(<objet User>)
+    → SQLAlchemy levait → 500. On utilise directement l'objet.
+    """
     try:
-        user = User.query.get(current_user_id)
-
-        if not user:
-            return jsonify({"error": "User not found"}), 404
-
-        return jsonify({"user": user.to_dict()}), 200
-
+        return jsonify({"user": current_user.to_dict()}), 200
     except Exception as e:
         return jsonify({"error": "Failed to get user information"}), 500

@@ -776,3 +776,16 @@ class TestPasswordDeleteOwnership:
             f"/api/passwords/{pid_a}", headers={"Authorization": f"Bearer {access_a}"}
         )
         assert still.status_code == 200
+
+
+class TestGetMe:
+    """Lot 6 (A3) : GET /api/auth/me renvoie l'utilisateur courant.
+
+    Bug : token_required injecte l'OBJET User, mais la route le nommait
+    current_user_id puis faisait User.query.get(<objet>) → 500."""
+
+    def test_get_me_returns_current_user(self, client, sample_user):
+        access = _login(client)
+        r = client.get("/api/auth/me", headers={"Authorization": f"Bearer {access}"})
+        assert r.status_code == 200  # RED avant A3 : 500
+        assert json.loads(r.data)["user"]["email"] == "test@example.com"
