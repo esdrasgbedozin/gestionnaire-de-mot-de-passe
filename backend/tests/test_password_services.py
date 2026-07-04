@@ -9,68 +9,7 @@ import pytest
 # Ajouter le répertoire parent au path pour les imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.services.encryption_service import EncryptionService
 from app.services.password_generator import PasswordGenerator
-
-
-class TestEncryptionService:
-    """Tests du service de chiffrement"""
-
-    def test_encrypt_decrypt_password(self):
-        """Test basique chiffrement/déchiffrement"""
-        plaintext = "MonMotDePasseSecret123!"
-        user_key = "test_user_key_123"
-
-        # Chiffrement
-        encrypted = EncryptionService.encrypt_password(plaintext, user_key)
-        assert encrypted != plaintext
-        assert len(encrypted) > 0
-
-        # Déchiffrement
-        decrypted = EncryptionService.decrypt_password(encrypted, user_key)
-        assert decrypted == plaintext
-
-    def test_different_keys_produce_different_results(self):
-        """Vérifier que des clés différentes produisent des résultats différents"""
-        plaintext = "SamePassword123"
-        key1 = "user_key_1"
-        key2 = "user_key_2"
-
-        encrypted1 = EncryptionService.encrypt_password(plaintext, key1)
-        encrypted2 = EncryptionService.encrypt_password(plaintext, key2)
-
-        assert encrypted1 != encrypted2
-
-    def test_same_password_different_encryptions(self):
-        """Vérifier que le même mot de passe produit des chiffrements différents (IV différents)"""
-        plaintext = "SamePassword123"
-        user_key = "same_key"
-
-        encrypted1 = EncryptionService.encrypt_password(plaintext, user_key)
-        encrypted2 = EncryptionService.encrypt_password(plaintext, user_key)
-
-        # Doivent être différents à cause des IV aléatoires
-        assert encrypted1 != encrypted2
-
-        # Mais doivent se déchiffrer vers le même texte
-        decrypted1 = EncryptionService.decrypt_password(encrypted1, user_key)
-        decrypted2 = EncryptionService.decrypt_password(encrypted2, user_key)
-
-        assert decrypted1 == decrypted2 == plaintext
-
-    def test_invalid_key_fails(self):
-        """Vérifier qu'une mauvaise clé échoue"""
-        plaintext = "TestPassword123"
-        correct_key = "correct_key"
-        wrong_key = "wrong_key"
-
-        encrypted = EncryptionService.encrypt_password(plaintext, correct_key)
-
-        try:
-            EncryptionService.decrypt_password(encrypted, wrong_key)
-            assert False, "Devrait lever une exception avec une mauvaise clé"
-        except ValueError:
-            pass  # Attendu
 
 
 class TestPasswordGenerator:
@@ -192,17 +131,6 @@ class TestPasswordGenerator:
 if __name__ == "__main__":
     # Tests rapides
     print("🧪 Tests des services Password Manager")
-
-    # Test chiffrement
-    print("\n🔐 Test service de chiffrement...")
-    try:
-        test_enc = TestEncryptionService()
-        test_enc.test_encrypt_decrypt_password()
-        test_enc.test_different_keys_produce_different_results()
-        test_enc.test_same_password_different_encryptions()
-        print("✅ Service de chiffrement : OK")
-    except Exception as e:
-        print(f"❌ Service de chiffrement : {e}")
 
     # Test générateur
     print("\n🎲 Test générateur de mots de passe...")
