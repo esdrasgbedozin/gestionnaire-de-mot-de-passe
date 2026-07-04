@@ -16,6 +16,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copier le code de l'application
 COPY . .
 
+# M4 : exécuter en utilisateur non-root (moindre privilège). Créé sans home ni
+# shell de login ; propriétaire de /app pour pouvoir écrire le bytecode .pyc.
+# gunicorn logue sur stdout (pas d'écriture disque) et bind sur 5000 (> 1024,
+# accessible sans privilège).
+RUN groupadd --system --gid 1001 appuser \
+    && useradd --system --uid 1001 --gid appuser --no-create-home appuser \
+    && chown -R appuser:appuser /app
+USER appuser
+
 # Exposer le port
 EXPOSE 5000
 

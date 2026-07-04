@@ -11,6 +11,12 @@ RUN npm install
 # Copier le code source
 COPY . .
 
+# M4 : exécuter en utilisateur non-root. L'image node fournit l'utilisateur
+# `node` (uid 1000). Il doit posséder /app pour écrire le cache de react-scripts
+# (node_modules/.cache) et le build sans perte d'accès.
+RUN chown -R node:node /app
+USER node
+
 # Exposer le port
 EXPOSE 3000
 
