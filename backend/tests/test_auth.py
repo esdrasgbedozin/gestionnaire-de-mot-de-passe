@@ -821,3 +821,102 @@ class TestDecryptionRateLimit:
             for _ in range(120)
         ]
         assert 429 in statuses  # RED avant C7 : jamais limité (que des 200)
+
+
+import uuid as _uuid
+import base64 as _b64
+import secrets as _secrets
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM as _AESGCM
+from app.models import Password
+
+
+class TestEntryBackfillB6:
+    """B6 (b) : lecture d'une entrée v0 → backfill opportuniste v1, avec la GARDE
+    non négociable : un échec de persistance ne casse JAMAIS la lecture."""
+
+    def _session_vmk(self, app, access):
+        sid = pyjwt.decode(access, JWT_TEST_SECRET, algorithms=["HS256"])["sid"]
+        return app.session_key_store.get_vmk(sid)
+
+    def _uid(self, app):
+        with app.app_context():
+            return User.query.filter_by(email="test@example.com").first().id
+
+    def _insert_v0_entry(self, app, user_id, vmk, secret):
+        """Insère une entrée AU FORMAT v0 (sans octet de version, AAD=None)."""
+        nonce = _secrets.token_bytes(12)
+        v0 = _b64.b64encode(
+            nonce + _AESGCM(vmk).encrypt(nonce, secret.encode(), None)
+        ).decode()
+        eid = str(_uuid.uuid4())
+        with app.app_context():
+            e = Password(
+                id=eid,
+                user_id=user_id,
+                site_name="legacy.com",
+                username="u",
+                encrypted_password=v0,
+            )
+            db.session.add(e)
+            db.session.commit()
+        return eid
+
+    def _is_legacy(self, app, eid):
+        with app.app_context():
+            return EncryptionService.is_legacy_entry(
+                Password.query.get(eid).encrypted_password
+            )
+
+    def test_create_then_get_roundtrips_through_routes(self, client, sample_user):
+        """Reconstructibilité bout-en-bout : POST (id pré-généré + AAD) puis GET
+        (AAD reconstruite depuis la ligne) déchiffre la bonne valeur."""
+        access = _login(client)
+        h = {"Authorization": f"Bearer {access}"}
+        cr = client.post(
+            "/api/passwords/",
+            headers=h,
+            data=json.dumps(
+                {"site_name": "a.com", "username": "u", "password": "P-ctx-1!"}
+            ),
+            content_type="application/json",
+        )
+        pid = json.loads(cr.data)["password"]["id"]
+        r = client.get(f"/api/passwords/{pid}", headers=h)
+        assert r.status_code == 200
+        assert json.loads(r.data)["password"] == "P-ctx-1!"
+
+    def test_v0_entry_backfilled_to_v1_on_read(self, client, sample_user, app):
+        access = _login(client)
+        h = {"Authorization": f"Bearer {access}"}
+        eid = self._insert_v0_entry(
+            app, self._uid(app), self._session_vmk(app, access), "legacy-secret"
+        )
+        assert self._is_legacy(app, eid)  # avant : v0
+
+        r = client.get(f"/api/passwords/{eid}", headers=h)
+        assert r.status_code == 200
+        assert json.loads(r.data)["password"] == "legacy-secret"
+
+        assert not self._is_legacy(app, eid)  # après : v1 (backfillé)
+
+    def test_backfill_failure_does_not_break_read(
+        self, client, sample_user, app, monkeypatch
+    ):
+        """GARDE : persistance du backfill en échec → lecture renvoie quand même
+        200 + bonne valeur, et l'entrée reste v0 (relisible au prochain coup)."""
+        access = _login(client)
+        h = {"Authorization": f"Bearer {access}"}
+        eid = self._insert_v0_entry(
+            app, self._uid(app), self._session_vmk(app, access), "resilient-secret"
+        )
+
+        def boom():
+            raise RuntimeError("persistance en échec (simulé)")
+
+        monkeypatch.setattr(db.session, "commit", boom)
+        r = client.get(f"/api/passwords/{eid}", headers=h)
+        monkeypatch.undo()
+
+        assert r.status_code == 200  # la lecture NE dépend PAS de l'écriture
+        assert json.loads(r.data)["password"] == "resilient-secret"
+        assert self._is_legacy(app, eid)  # entrée toujours v0, backfill avalé

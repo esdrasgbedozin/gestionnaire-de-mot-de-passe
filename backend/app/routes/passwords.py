@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from sqlalchemy import or_, and_
 from sqlalchemy.exc import IntegrityError
 import re
+import uuid
 
 from app.models import Password, User, AuditLog, db
 from app.services.encryption_service import EncryptionService
@@ -219,10 +220,12 @@ def get_password(current_user, password_id):
             )
             return jsonify({"error": "Password not found"}), 404
 
-        # Déchiffrer le mot de passe
+        # Déchiffrer le mot de passe (AAD = contexte de la ligne, reconstruit à
+        # l'identique : user_id:entry_id). Un v0/legacy passe par le fallback.
+        entry_aad = f"{user_id}:{password_entry.id}".encode()
         try:
             decrypted_password = EncryptionService.decrypt_entry(
-                password_entry.encrypted_password, vmk
+                password_entry.encrypted_password, vmk, entry_aad
             )
         except Exception as decrypt_error:
             log_audit_event(
@@ -234,13 +237,29 @@ def get_password(current_user, password_id):
             )
             return jsonify({"error": "Unable to decrypt password"}), 500
 
-        # Mettre à jour la date de dernière utilisation
-        password_entry.last_used = datetime.now(timezone.utc)
-        db.session.commit()
-
-        # Retourner les données avec le mot de passe déchiffré
+        # Réponse construite AVANT toute persistance : la lecture ne dépend JAMAIS
+        # d'une écriture (garde non négociable du backfill).
         password_data = password_entry.to_dict()
         password_data["password"] = decrypted_password
+
+        # Effets de bord OPPORTUNISTES et non bloquants : last_used + backfill
+        # v0 -> v1 (ré-encodage lié au contexte de la ligne). Un échec de
+        # persistance est avalé (logué sans secret) ; l'entrée reste en l'état
+        # (v0 relisible au prochain coup) et la lecture renvoie quand même 200.
+        try:
+            password_entry.last_used = datetime.now(timezone.utc)
+            if EncryptionService.is_legacy_entry(password_entry.encrypted_password):
+                password_entry.encrypted_password = EncryptionService.encrypt_entry(
+                    decrypted_password, vmk, entry_aad
+                )
+            db.session.commit()
+        except Exception as side_effect_error:
+            db.session.rollback()
+            current_app.logger.warning(
+                "Effet de bord non bloquant échoué (VIEW_PASSWORD) %s: %s",
+                password_id,
+                type(side_effect_error).__name__,
+            )
 
         log_audit_event("VIEW_PASSWORD", resource_id=password_id, user_id=user_id)
 
@@ -284,9 +303,17 @@ def create_password(current_user):
             )
             return jsonify({"error": "Invalid data", "details": errors}), 400
 
-        # Chiffrer le mot de passe
+        # Pré-générer l'UUID de l'entrée AVANT le chiffrement : l'AAD (user_id:id)
+        # doit être connue au chiffrement ET reconstructible à l'identique à la
+        # lecture. On ne peut pas s'appuyer sur le default SQLAlchemy (généré au
+        # flush, donc après le chiffrement).
+        entry_id = str(uuid.uuid4())
+
+        # Chiffrer le mot de passe (lié au contexte de la ligne)
         try:
-            encrypted_password = EncryptionService.encrypt_entry(data["password"], vmk)
+            encrypted_password = EncryptionService.encrypt_entry(
+                data["password"], vmk, f"{user_id}:{entry_id}".encode()
+            )
         except Exception as encrypt_error:
             log_audit_event(
                 "CREATE_PASSWORD",
@@ -299,8 +326,9 @@ def create_password(current_user):
         # Évaluer la force du mot de passe
         strength_info = PasswordGenerator.evaluate_strength(data["password"])
 
-        # Créer l'entrée
+        # Créer l'entrée (id pré-généré = celui lié dans l'AAD)
         password_entry = Password(
+            id=entry_id,
             user_id=user_id,
             site_name=data["site_name"].strip(),
             site_url=data.get("site_url", "").strip() or None,
@@ -529,8 +557,9 @@ def update_password(current_user, password_id):
         # Si le mot de passe est modifié, le chiffrer et calculer la force
         if "password" in data:
             try:
+                # Ré-chiffrement lié au contexte de la ligne (id stable, connu)
                 encrypted_password = EncryptionService.encrypt_entry(
-                    data["password"], vmk
+                    data["password"], vmk, f"{user_id}:{password_obj.id}".encode()
                 )
                 password_obj.encrypted_password = encrypted_password
 

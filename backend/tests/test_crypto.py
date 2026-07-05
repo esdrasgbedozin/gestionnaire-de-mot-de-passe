@@ -385,3 +385,49 @@ class TestVersionedFormatA:
         vmk = E.generate_vmk()
         v0_wrapped = _legacy_v0_blob(kek, vmk)  # VMK enveloppée au format v0
         assert E.unwrap_vmk(v0_wrapped, kek) == vmk
+
+
+class TestAADBinding:
+    """Incrément B6 (b) : l'AAD lie chaque ciphertext à son CONTEXTE
+    (entrées : user_id:entry_id ; wrapped_VMK : b"vmk"). Empêche le déplacement
+    d'un ciphertext vers une autre entrée/utilisateur."""
+
+    def test_entry_binding_roundtrip(self):
+        """Chiffré ET déchiffré sous le même contexte → round-trip OK."""
+        vmk = E.generate_vmk()
+        aad = b"user-A:entry-1"
+        ct = E.encrypt_entry("s3cret", vmk, aad)
+        assert E.decrypt_entry(ct, vmk, aad) == "s3cret"
+
+    def test_entry_moved_to_other_context_fails(self):
+        """5e PREUVE (bénéfice de B6) : un ciphertext lié à user_id:idA ne se
+        déchiffre PAS sous user_id:idB (tag invalide) → anti-déplacement."""
+        vmk = E.generate_vmk()
+        ct = E.encrypt_entry("bank-password", vmk, b"user-A:entry-A")
+        with pytest.raises(ValueError):
+            E.decrypt_entry(ct, vmk, b"user-A:entry-B")  # déplacé → refusé
+        with pytest.raises(ValueError):
+            E.decrypt_entry(ct, vmk, b"user-B:entry-A")  # autre user → refusé
+        # contrôle positif : le bon contexte déchiffre
+        assert E.decrypt_entry(ct, vmk, b"user-A:entry-A") == "bank-password"
+
+    def test_a_era_empty_aad_entry_readable_with_context(self):
+        """Transition (a)->(b) : un v1 écrit en (a) (AAD vide) reste lisible même
+        si on présente un contexte en (b) (fallback None). Aucune perte au déploiement."""
+        vmk = E.generate_vmk()
+        ct_a_era = E.encrypt_entry("written-in-a", vmk)  # AAD=None (comme incrément a)
+        assert E.decrypt_entry(ct_a_era, vmk, b"user-A:entry-1") == "written-in-a"
+
+    def test_wrapped_vmk_bound_to_vmk_domain(self):
+        """wrapped_VMK est lié au domaine b"vmk" ; unwrap gère aussi le legacy (None)."""
+        kek = E.derive_kek("Master-Correct-Horse-9!", b"0123456789abcdef")
+        vmk = E.generate_vmk()
+        assert E.unwrap_vmk(E.wrap_vmk(vmk, kek), kek) == vmk  # v1 b"vmk"
+        v0_wrapped = _legacy_v0_blob(kek, vmk)  # legacy sans octet
+        assert E.unwrap_vmk(v0_wrapped, kek) == vmk
+
+    def test_is_legacy_entry_detects_v0(self):
+        """Détecteur de backfill : v0 (sans octet) = legacy ; v1 = à jour."""
+        vmk = E.generate_vmk()
+        assert E.is_legacy_entry(_legacy_v0_blob(vmk, b"x")) is True
+        assert E.is_legacy_entry(E.encrypt_entry("x", vmk, b"ctx")) is False
