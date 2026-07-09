@@ -8,30 +8,30 @@
  * @returns {Object} - Score et niveau de force
  */
 export const evaluatePasswordStrength = (password) => {
-  if (!password) return { score: 0, level: 'none', text: 'Aucun' };
-  
+  if (!password) return { score: 0, level: "none", text: "Aucun" };
+
   let score = 0;
-  
+
   // Critères de base
   if (password.length >= 8) score++;
   if (password.length >= 12) score++;
   if (password.length >= 16) score++;
-  
+
   // Critères de complexité
   if (/[a-z]/.test(password)) score++; // Minuscules
   if (/[A-Z]/.test(password)) score++; // Majuscules
   if (/[0-9]/.test(password)) score++; // Chiffres
   if (/[^A-Za-z0-9]/.test(password)) score++; // Caractères spéciaux
-  
+
   // Pénalités
   if (/(.)\1{2,}/.test(password)) score--; // Répétitions
   if (/123|abc|qwerty|password/i.test(password)) score--; // Séquences communes
-  
+
   // Déterminer le niveau
-  if (score <= 2) return { score, level: 'weak', text: 'Faible' };
-  if (score <= 4) return { score, level: 'medium', text: 'Moyen' };
-  if (score <= 6) return { score, level: 'strong', text: 'Fort' };
-  return { score, level: 'very-strong', text: 'Très fort' };
+  if (score <= 2) return { score, level: "weak", text: "Faible" };
+  if (score <= 4) return { score, level: "medium", text: "Moyen" };
+  if (score <= 6) return { score, level: "strong", text: "Fort" };
+  return { score, level: "very-strong", text: "Très fort" };
 };
 
 /**
@@ -69,7 +69,7 @@ export const calculatePasswordStats = (passwords) => {
   // Compter les mots de passe par site pour détecter les doublons
   const siteCounts = {};
 
-  passwords.forEach(pwd => {
+  passwords.forEach((pwd) => {
     // Évaluer la force basée sur le score du backend (1-5)
     // 1-2 = weak, 3 = medium, 4-5 = strong
     const strength_score = pwd.password_strength || 1;
@@ -96,19 +96,21 @@ export const calculatePasswordStats = (passwords) => {
       const createdDate = new Date(pwd.created_at);
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
-      
+
       if (createdDate > weekAgo) {
         stats.recentlyAdded++;
       }
     }
 
     // Compter les doublons par site
-    const siteKey = pwd.site_name?.toLowerCase() || 'unknown';
+    const siteKey = pwd.site_name?.toLowerCase() || "unknown";
     siteCounts[siteKey] = (siteCounts[siteKey] || 0) + 1;
   });
 
   // Calculer les doublons
-  stats.duplicates = Object.values(siteCounts).filter(count => count > 1).length;
+  stats.duplicates = Object.values(siteCounts).filter(
+    (count) => count > 1,
+  ).length;
 
   // Convertir categories Set en nombre
   stats.categories = stats.categories.size;
@@ -125,8 +127,8 @@ export const getTopCategories = (passwords) => {
   if (!Array.isArray(passwords)) return [];
 
   const categoryCounts = {};
-  
-  passwords.forEach(pwd => {
+
+  passwords.forEach((pwd) => {
     if (pwd.category) {
       categoryCounts[pwd.category] = (categoryCounts[pwd.category] || 0) + 1;
     }
@@ -147,11 +149,11 @@ export const getWeakPasswords = (passwords, limit = 10) => {
   if (!Array.isArray(passwords)) return [];
 
   return passwords
-    .map(pwd => ({
+    .map((pwd) => ({
       ...pwd,
-      strength: evaluatePasswordStrength(pwd.password)
+      strength: evaluatePasswordStrength(pwd.password),
     }))
-    .filter(pwd => pwd.strength.level === 'weak')
+    .filter((pwd) => pwd.strength.level === "weak")
     .sort((a, b) => a.strength.score - b.strength.score)
     .slice(0, limit);
 };
@@ -169,7 +171,7 @@ export const getRecentPasswords = (passwords, days = 30) => {
   cutoffDate.setDate(cutoffDate.getDate() - days);
 
   return passwords
-    .filter(pwd => {
+    .filter((pwd) => {
       const updatedDate = new Date(pwd.updated_at || pwd.created_at);
       return updatedDate > cutoffDate;
     })
@@ -186,44 +188,40 @@ export const getRecentPasswords = (passwords, days = 30) => {
  * @returns {string} - Formatted date
  */
 export const formatRelativeDate = (dateString) => {
-  if (!dateString) return 'Never';
+  if (!dateString) return "Never";
 
   const date = new Date(dateString);
   const now = new Date();
-  
+
   // Vérifier si la date est valide
   if (isNaN(date.getTime())) {
-    console.warn('Invalid date provided to formatRelativeDate:', dateString);
-    return 'Invalid date';
+    return "Invalid date";
   }
-  
+
   // Reset les heures pour comparer seulement les dates (à minuit local)
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const compareDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  
+  const compareDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate(),
+  );
+
   const diffInMs = today.getTime() - compareDate.getTime();
   const diffInDays = Math.round(diffInMs / (1000 * 60 * 60 * 24));
 
-  // Debug log temporaire
-  console.log('Date comparison:', {
-    original: dateString,
-    parsed: date,
-    today: today,
-    compareDate: compareDate,
-    diffInMs: diffInMs,
-    diffInDays: diffInDays
-  });
-
-  if (diffInDays === 0) return 'Today';
-  if (diffInDays === 1) return 'Yesterday';
-  if (diffInDays === -1) return 'Tomorrow'; // Au cas où
+  if (diffInDays === 0) return "Today";
+  if (diffInDays === 1) return "Yesterday";
+  if (diffInDays === -1) return "Tomorrow"; // Au cas où
   if (diffInDays > 1 && diffInDays < 7) return `${diffInDays} days ago`;
-  if (diffInDays >= 7 && diffInDays < 30) return `${Math.floor(diffInDays / 7)} week${Math.floor(diffInDays / 7) > 1 ? 's' : ''} ago`;
-  if (diffInDays >= 30 && diffInDays < 365) return `${Math.floor(diffInDays / 30)} month${Math.floor(diffInDays / 30) > 1 ? 's' : ''} ago`;
-  if (diffInDays >= 365) return `${Math.floor(diffInDays / 365)} year${Math.floor(diffInDays / 365) > 1 ? 's' : ''} ago`;
-  
+  if (diffInDays >= 7 && diffInDays < 30)
+    return `${Math.floor(diffInDays / 7)} week${Math.floor(diffInDays / 7) > 1 ? "s" : ""} ago`;
+  if (diffInDays >= 30 && diffInDays < 365)
+    return `${Math.floor(diffInDays / 30)} month${Math.floor(diffInDays / 30) > 1 ? "s" : ""} ago`;
+  if (diffInDays >= 365)
+    return `${Math.floor(diffInDays / 365)} year${Math.floor(diffInDays / 365) > 1 ? "s" : ""} ago`;
+
   // Pour les dates futures
-  if (diffInDays < 0) return 'Future date';
-  
+  if (diffInDays < 0) return "Future date";
+
   return `${diffInDays} days ago`;
 };
