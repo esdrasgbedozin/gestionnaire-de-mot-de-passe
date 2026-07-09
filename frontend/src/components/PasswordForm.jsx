@@ -22,7 +22,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState({ level: 0, text: 'Faible', color: 'red' });
+  const [passwordStrength, setPasswordStrength] = useState({ level: 0, text: 'Weak', color: 'red' });
   const [errors, setErrors] = useState({});
 
   const categories = [
@@ -54,7 +54,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
   }, [formData.password]);
 
   const calculatePasswordStrength = (pwd) => {
-    if (!pwd) return { level: 0, text: 'Aucun', color: 'gray' };
+    if (!pwd) return { level: 0, text: 'None', color: 'gray' };
     
     let score = 0;
     if (pwd.length >= 8) score++;
@@ -64,9 +64,9 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
     if (/[0-9]/.test(pwd)) score++;
     if (/[^A-Za-z0-9]/.test(pwd)) score++;
 
-    if (score <= 2) return { level: 1, text: 'Faible', color: 'red' };
-    if (score <= 4) return { level: 2, text: 'Moyen', color: 'yellow' };
-    return { level: 3, text: 'Fort', color: 'green' };
+    if (score <= 2) return { level: 1, text: 'Weak', color: 'red' };
+    if (score <= 4) return { level: 2, text: 'Medium', color: 'yellow' };
+    return { level: 3, text: 'Strong', color: 'green' };
   };
 
   const generatePassword = (options = {}) => {
@@ -256,10 +256,10 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
             )}
           </div>
 
-          {/* Mot de passe */}
+          {/* Password */}
           <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Mot de passe *
+              Password *
             </label>
             <div className="relative">
               <input
@@ -271,7 +271,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
                 className={`w-full px-3 py-2 pr-20 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
                   errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
                 }`}
-                placeholder="Entrez un mot de passe sécurisé"
+                placeholder="Enter a secure password"
               />
               <div className="absolute inset-y-0 right-0 flex items-center space-x-1 pr-3">
                 <button
@@ -286,7 +286,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
                   type="button"
                   onClick={handleGeneratePassword}
                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  title="Générer un mot de passe"
+                  aria-label="Generate a password" title="Generate a password"
                 >
                   <ArrowPathIcon className="h-4 w-4" />
                 </button>
@@ -300,7 +300,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
                   <span className="text-gray-600 dark:text-gray-400">Password strength:</span>
                   <span className={`font-medium ${
                     passwordStrength.color === 'green' ? 'text-green-600' :
-                    passwordStrength.color === 'yellow' ? 'text-yellow-600' :
+                    passwordStrength.color === 'yellow' ? 'text-yellow-700 dark:text-yellow-500' :
                     'text-red-600'
                   }`}>
                     {passwordStrength.text}
@@ -330,7 +330,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
           {/* URL du site */}
           <div>
             <label htmlFor="site_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              URL du site (optionnel)
+              Website URL (optional)
             </label>
             <input
               type="url"
@@ -351,10 +351,10 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
             )}
           </div>
 
-          {/* Catégorie */}
+          {/* Category */}
           <div>
             <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Catégorie
+              Category
             </label>
             <select
               id="category"
@@ -374,7 +374,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
           {/* Notes */}
           <div>
             <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Notes (optionnel)
+              Notes (optional)
             </label>
             <textarea
               id="notes"
@@ -404,7 +404,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
               {loading ? (
                 <>
                   <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                  Sauvegarde...
+                  Saving...
                 </>
               ) : (
                 <>

@@ -60,11 +60,11 @@ const SecurityCheck = () => {
         
         await performSecurityAnalysis(decryptedPasswords);
       } else {
-        toast.error('Erreur lors du chargement des mots de passe');
+        toast.error('Failed to load your passwords');
       }
     } catch (error) {
       console.error('Erreur lors du chargement:', error);
-      toast.error('Erreur lors du chargement des mots de passe');
+      toast.error('Failed to load your passwords');
     } finally {
       setLoading(false);
     }
@@ -136,47 +136,47 @@ const SecurityCheck = () => {
       if (analysis.weak > 0) {
         analysis.recommendations.push({
           type: 'warning',
-          title: 'Mots de passe faibles détectés',
-          description: `${analysis.weak} mot(s) de passe ont une force insuffisante. Renforcez-les en ajoutant des caractères spéciaux, des chiffres et en augmentant leur longueur.`
+          title: 'Weak passwords detected',
+          description: `${analysis.weak} password(s) are too weak. Strengthen them with special characters, numbers, and more length.`
         });
       }
 
       if (analysis.duplicates.length > 0) {
         analysis.recommendations.push({
           type: 'error',
-          title: 'Mots de passe dupliqués',
-          description: `${analysis.duplicates.length} mot(s) de passe sont utilisés plusieurs fois. Utilisez un mot de passe unique pour chaque site.`
+          title: 'Duplicate passwords',
+          description: `${analysis.duplicates.length} password(s) are reused. Use a unique password for every site.`
         });
       }
 
       if (analysis.oldPasswords.length > 0) {
         analysis.recommendations.push({
           type: 'warning',
-          title: 'Mots de passe anciens',
-          description: `${analysis.oldPasswords.length} mot(s) de passe n'ont pas été changés depuis plus de 90 jours. Pensez à les renouveler régulièrement.`
+          title: 'Old passwords',
+          description: `${analysis.oldPasswords.length} password(s) haven't changed in over 90 days. Consider rotating them regularly.`
         });
       }
 
       if (analysis.commonPasswords.length > 0) {
         analysis.recommendations.push({
           type: 'error',
-          title: 'Mots de passe courants détectés',
-          description: `${analysis.commonPasswords.length} mot(s) de passe contiennent des motifs courants. Évitez les mots du dictionnaire et les séquences prévisibles.`
+          title: 'Common passwords detected',
+          description: `${analysis.commonPasswords.length} password(s) use common patterns. Avoid dictionary words and predictable sequences.`
         });
       }
 
       if (analysis.recommendations.length === 0) {
         analysis.recommendations.push({
           type: 'success',
-          title: 'Excellente sécurité !',
-          description: 'Vos mots de passe respectent toutes les bonnes pratiques de sécurité. Continuez ainsi !'
+          title: 'Excellent security!',
+          description: 'Your passwords follow every security best practice. Keep it up!'
         });
       }
 
       setSecurityReport(analysis);
     } catch (error) {
       console.error('Erreur lors de l\'analyse:', error);
-      toast.error('Erreur lors de l\'analyse de sécurité');
+      toast.error('Security analysis failed');
     } finally {
       setAnalyzing(false);
     }
@@ -221,7 +221,7 @@ const SecurityCheck = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">
-            {loading ? 'Chargement des mots de passe...' : 'Analyse de sécurité en cours...'}
+            {loading ? 'Loading your passwords...' : 'Running security analysis...'}
           </p>
         </div>
       </div>
@@ -246,10 +246,10 @@ const SecurityCheck = () => {
               <ShieldCheckIcon className="h-8 w-8 text-indigo-600 mr-3" />
               <div>
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                  Analyse de Sécurité
+                  Security Analysis
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Évaluation complète de la sécurité de vos mots de passe
+                  A complete review of your passwords' security
                 </p>
               </div>
             </div>
@@ -260,8 +260,8 @@ const SecurityCheck = () => {
             <div className={`${getScoreBackground(securityScore)} rounded-2xl p-6 mb-6`}>
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Score de Sécurité</h2>
-                  <p className="text-gray-600">Basé sur l'analyse de {securityReport.total} mots de passe</p>
+                  <h2 className="text-2xl font-bold text-gray-900">Security Score</h2>
+                  <p className="text-gray-600">Based on an analysis of {securityReport.total} passwords</p>
                 </div>
                 <div className="text-right">
                   <div className={`text-4xl font-bold ${getScoreColor(securityScore)}`}>
@@ -269,7 +269,7 @@ const SecurityCheck = () => {
                   </div>
                   <p className="text-sm text-gray-600">
                     {securityScore >= 80 ? 'Excellent' : 
-                     securityScore >= 60 ? 'Correct' : 'À améliorer'}
+                     securityScore >= 60 ? 'Correct' : 'Needs work'}
                   </p>
                 </div>
               </div>
@@ -277,11 +277,11 @@ const SecurityCheck = () => {
           )}
         </div>
 
-        {/* Recommandations */}
+        {/* Recommendations */}
         {securityReport?.recommendations && (
           <div className="mb-8">
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-              Recommandations
+              Recommendations
             </h2>
             <div className="space-y-4">
               {securityReport.recommendations.map((rec, index) => (
@@ -337,7 +337,7 @@ const SecurityCheck = () => {
               <div className="flex items-center">
                 <CheckCircleIcon className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Forts</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Strong</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.strong}
                   </p>
@@ -349,7 +349,7 @@ const SecurityCheck = () => {
               <div className="flex items-center">
                 <ExclamationTriangleIcon className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Moyens</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Medium</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.medium}
                   </p>
@@ -361,7 +361,7 @@ const SecurityCheck = () => {
               <div className="flex items-center">
                 <XCircleIcon className="h-8 w-8 text-red-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Faibles</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">Weak</p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.weak}
                   </p>
@@ -379,7 +379,7 @@ const SecurityCheck = () => {
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                   <XCircleIcon className="h-5 w-5 text-red-600 mr-2" />
-                  Mots de passe faibles ({securityReport.weak})
+                  Weak passwords ({securityReport.weak})
                 </h3>
                 <div className="space-y-3">
                   {getWeakPasswords(passwords, 5).map(pwd => (
@@ -413,12 +413,12 @@ const SecurityCheck = () => {
               </div>
             )}
 
-            {/* Mots de passe anciens */}
+            {/* Old passwords */}
             {securityReport.oldPasswords.length > 0 && (
               <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4 flex items-center">
                   <ClockIcon className="h-5 w-5 text-yellow-600 mr-2" />
-                  Mots de passe anciens ({securityReport.oldPasswords.length})
+                  Old passwords ({securityReport.oldPasswords.length})
                 </h3>
                 <div className="space-y-3">
                   {securityReport.oldPasswords.slice(0, 5).map(pwd => (
@@ -428,7 +428,7 @@ const SecurityCheck = () => {
                           {pwd.site_name}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Dernière modification: {formatRelativeDate(pwd.updated_at || pwd.created_at)}
+                          Last modified: {formatRelativeDate(pwd.updated_at || pwd.created_at)}
                         </p>
                       </div>
                       <span className="text-sm font-medium text-yellow-600">
@@ -449,7 +449,7 @@ const SecurityCheck = () => {
             className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
           >
             <ShieldCheckIcon className="h-5 w-5 mr-2" />
-            Relancer l'analyse
+            Re-run analysis
           </button>
         </div>
       </div>

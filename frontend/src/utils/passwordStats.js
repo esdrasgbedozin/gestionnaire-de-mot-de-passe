@@ -8,7 +8,7 @@
  * @returns {Object} - Score et niveau de force
  */
 export const evaluatePasswordStrength = (password) => {
-  if (!password) return { score: 0, level: "none", text: "Aucun" };
+  if (!password) return { score: 0, level: "none", text: "None" };
 
   let score = 0;
 
@@ -28,10 +28,10 @@ export const evaluatePasswordStrength = (password) => {
   if (/123|abc|qwerty|password/i.test(password)) score--; // Séquences communes
 
   // Déterminer le niveau
-  if (score <= 2) return { score, level: "weak", text: "Faible" };
-  if (score <= 4) return { score, level: "medium", text: "Moyen" };
-  if (score <= 6) return { score, level: "strong", text: "Fort" };
-  return { score, level: "very-strong", text: "Très fort" };
+  if (score <= 2) return { score, level: "weak", text: "Weak" };
+  if (score <= 4) return { score, level: "medium", text: "Medium" };
+  if (score <= 6) return { score, level: "strong", text: "Strong" };
+  return { score, level: "very-strong", text: "Very strong" };
 };
 
 /**
