@@ -357,14 +357,14 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
           <button
             onClick={() => onEdit(password)}
             className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900"
-            aria-label="Edit this entry" aria-label="Edit this entry" title="Edit"
+            aria-label="Edit this entry" title="Edit"
           >
             <PencilIcon className="h-4 w-4" />
           </button>
           <button
             onClick={() => onDelete(password.id)}
             className="p-2 text-red-400 hover:text-red-600 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 hover:bg-red-50 dark:hover:bg-red-900"
-            aria-label="Delete this entry" aria-label="Delete this entry" title="Delete"
+            aria-label="Delete this entry" title="Delete"
           >
             <TrashIcon className="h-4 w-4" />
           </button>

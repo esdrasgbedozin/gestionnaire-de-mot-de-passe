@@ -469,9 +469,9 @@ const Settings = () => {
                 <div className="space-y-6">
                   {/* Statistiques de sécurité */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-lg">
                       <div className="flex items-center">
-                        <KeyIcon className="h-8 w-8 text-blue-600" />
+                        <KeyIcon className="h-8 w-8 text-indigo-600" />
                         <div className="ml-4">
                           <p className="text-sm text-gray-600 dark:text-gray-400">
                             Total Passwords
@@ -552,7 +552,7 @@ const Settings = () => {
 
                 <div className="space-y-6">
                   {/* Export */}
-                  <div className="border border-blue-200 dark:border-blue-700 rounded-lg p-4">
+                  <div className="border border-indigo-200 dark:border-indigo-700 rounded-lg p-4">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                       Export your data
                     </h3>
@@ -562,7 +562,7 @@ const Settings = () => {
                     <button
                       onClick={handleExportData}
                       disabled={exportLoading}
-                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center"
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center"
                     >
                       {exportLoading ? (
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />

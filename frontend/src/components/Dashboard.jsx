@@ -42,12 +42,6 @@ const Dashboard = () => {
 
   useEffect(() => {
     setIsAnimating(true);
-
-    // Diagnostic automatique en mode développement
-    if (process.env.NODE_ENV === "development") {
-    }
-
-    // Charger les mots de passe
     loadPasswords();
   }, []);
 
