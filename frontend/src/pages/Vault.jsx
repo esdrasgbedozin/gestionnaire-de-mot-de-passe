@@ -310,7 +310,9 @@ const Vault = () => {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setViewMode("grid")}
-                      className={`p-2 rounded-md ${viewMode === "grid" ? "bg-indigo-100 text-indigo-700" : "text-gray-400 hover:text-gray-600"}`}
+                      aria-label="Grid view"
+                      aria-pressed={viewMode === "grid"}
+                      className={`p-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${viewMode === "grid" ? "bg-indigo-100 text-indigo-700" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"}`}
                     >
                       <svg
                         className="h-5 w-5"
@@ -322,7 +324,9 @@ const Vault = () => {
                     </button>
                     <button
                       onClick={() => setViewMode("list")}
-                      className={`p-2 rounded-md ${viewMode === "list" ? "bg-indigo-100 text-indigo-700" : "text-gray-400 hover:text-gray-600"}`}
+                      aria-label="List view"
+                      aria-pressed={viewMode === "list"}
+                      className={`p-2 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${viewMode === "list" ? "bg-indigo-100 text-indigo-700" : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"}`}
                     >
                       <svg
                         className="h-5 w-5"

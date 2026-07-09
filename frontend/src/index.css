@@ -280,3 +280,15 @@ code {
 .alert-info {
   @apply bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md;
 }
+
+/* Accessibilité : respecter la préférence de mouvement réduit (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
