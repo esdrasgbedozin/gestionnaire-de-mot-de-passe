@@ -1,37 +1,26 @@
 /**
- * Utilitaires pour calculer les statistiques des mots de passe
+ * Password statistics utilities.
  */
+
+import { evaluateStrength } from "./passwordStrength";
 
 /**
- * Évaluer la force d'un mot de passe
- * @param {string} password - Le mot de passe à évaluer
- * @returns {Object} - Score et niveau de force
+ * Evaluate a password's strength via the single app-wide engine (zxcvbn).
+ * Kept returning { score, level, text } for existing callers (e.g. getWeakPasswords).
  */
 export const evaluatePasswordStrength = (password) => {
-  if (!password) return { score: 0, level: "none", text: "None" };
-
-  let score = 0;
-
-  // Critères de base
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (password.length >= 16) score++;
-
-  // Critères de complexité
-  if (/[a-z]/.test(password)) score++; // Minuscules
-  if (/[A-Z]/.test(password)) score++; // Majuscules
-  if (/[0-9]/.test(password)) score++; // Chiffres
-  if (/[^A-Za-z0-9]/.test(password)) score++; // Caractères spéciaux
-
-  // Pénalités
-  if (/(.)\1{2,}/.test(password)) score--; // Répétitions
-  if (/123|abc|qwerty|password/i.test(password)) score--; // Séquences communes
-
-  // Déterminer le niveau
-  if (score <= 2) return { score, level: "weak", text: "Weak" };
-  if (score <= 4) return { score, level: "medium", text: "Medium" };
-  if (score <= 6) return { score, level: "strong", text: "Strong" };
-  return { score, level: "very-strong", text: "Very strong" };
+  const s = evaluateStrength(password);
+  const level =
+    s.score < 0
+      ? "none"
+      : s.score <= 1
+        ? "weak"
+        : s.score === 2
+          ? "medium"
+          : s.score === 3
+            ? "strong"
+            : "very-strong";
+  return { score: s.score, level, text: s.label };
 };
 
 /**

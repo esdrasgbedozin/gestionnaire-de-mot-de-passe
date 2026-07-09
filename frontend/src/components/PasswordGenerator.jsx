@@ -7,6 +7,7 @@ import {
   AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
+import { evaluateStrength } from '../utils/passwordStrength';
 
 const PasswordGenerator = ({ onClose, onUsePassword }) => {
   const [generatedPassword, setGeneratedPassword] = useState('');
@@ -26,40 +27,10 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
     generatePassword();
   }, []);
 
-  // Calculer la force du mot de passe
+  // Force via le moteur UNIQUE (zxcvbn) — même mesure et même vocabulaire partout.
   const calculatePasswordStrength = useCallback((password) => {
-    if (!password) return { level: 0, text: 'None', color: 'gray' };
-    
-    let score = 0;
-    let feedback = [];
-
-    // Longueur
-    if (password.length >= 8) score++;
-    if (password.length >= 12) score += 2;
-    if (password.length >= 16) score++;
-    
-    // Character types
-    if (/[a-z]/.test(password)) score++;
-    if (/[A-Z]/.test(password)) score++;
-    if (/[0-9]/.test(password)) score++;
-    if (/[^A-Za-z0-9]/.test(password)) score += 2;
-
-    // Entropie (variété)
-    const uniqueChars = new Set(password).size;
-    if (uniqueChars / password.length > 0.7) score++;
-
-    // Patterns courants (pénalités)
-    if (/(.)\1{2,}/.test(password)) score--; // Répétitions
-    if (/123|abc|qwerty/i.test(password)) score--; // Séquences
-
-    const maxScore = 10;
-    const percentage = Math.max(0, Math.min(100, (score / maxScore) * 100));
-
-    if (percentage < 30) return { level: 1, text: 'Very weak', color: 'red', percentage };
-    if (percentage < 50) return { level: 2, text: 'Weak', color: 'orange', percentage };
-    if (percentage < 70) return { level: 3, text: 'Medium', color: 'yellow', percentage };
-    if (percentage < 85) return { level: 4, text: 'Strong', color: 'green', percentage };
-    return { level: 5, text: 'Very strong', color: 'emerald', percentage };
+    const s = evaluateStrength(password);
+    return { text: s.label, color: s.color, percentage: s.percent };
   }, []);
 
   const generatePassword = useCallback(() => {
@@ -216,10 +187,8 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-gray-600 dark:text-gray-400">Password strength:</span>
                 <span className={`font-medium ${
-                  passwordStrength.color === 'emerald' ? 'text-emerald-600' :
                   passwordStrength.color === 'green' ? 'text-green-600' :
                   passwordStrength.color === 'yellow' ? 'text-yellow-700 dark:text-yellow-500' :
-                  passwordStrength.color === 'orange' ? 'text-orange-600' :
                   passwordStrength.color === 'red' ? 'text-red-600' :
                   'text-gray-600'
                 }`}>
@@ -229,10 +198,8 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                 <div 
                   className={`h-3 rounded-full transition-all duration-500 ${
-                    passwordStrength.color === 'emerald' ? 'bg-emerald-500' :
                     passwordStrength.color === 'green' ? 'bg-green-500' :
                     passwordStrength.color === 'yellow' ? 'bg-yellow-500' :
-                    passwordStrength.color === 'orange' ? 'bg-orange-500' :
                     passwordStrength.color === 'red' ? 'bg-red-500' :
                     'bg-gray-500'
                   }`}

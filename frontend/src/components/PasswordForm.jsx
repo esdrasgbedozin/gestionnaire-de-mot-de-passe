@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import passwordService from '../services/passwordService';
+import { evaluateStrength } from '../utils/passwordStrength';
 
 const PasswordForm = ({ password, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
@@ -22,7 +23,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState({ level: 0, text: 'Weak', color: 'red' });
+  const [passwordStrength, setPasswordStrength] = useState({ text: 'None', color: 'gray' });
   const [errors, setErrors] = useState({});
 
   const categories = [
@@ -54,19 +55,8 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
   }, [formData.password]);
 
   const calculatePasswordStrength = (pwd) => {
-    if (!pwd) return { level: 0, text: 'None', color: 'gray' };
-    
-    let score = 0;
-    if (pwd.length >= 8) score++;
-    if (pwd.length >= 12) score++;
-    if (/[a-z]/.test(pwd)) score++;
-    if (/[A-Z]/.test(pwd)) score++;
-    if (/[0-9]/.test(pwd)) score++;
-    if (/[^A-Za-z0-9]/.test(pwd)) score++;
-
-    if (score <= 2) return { level: 1, text: 'Weak', color: 'red' };
-    if (score <= 4) return { level: 2, text: 'Medium', color: 'yellow' };
-    return { level: 3, text: 'Strong', color: 'green' };
+    const s = evaluateStrength(pwd);
+    return { text: s.label, color: s.color };
   };
 
   const generatePassword = (options = {}) => {
@@ -89,11 +79,14 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
       charset = charset.replace(/[il1Lo0O]/g, '');
     }
 
+    // CSPRNG : jamais Math.random() pour un mot de passe (défaut sécurité corrigé).
     let result = '';
+    const randomValues = new Uint32Array(length);
+    crypto.getRandomValues(randomValues);
     for (let i = 0; i < length; i++) {
-      result += charset.charAt(Math.floor(Math.random() * charset.length));
+      result += charset.charAt(randomValues[i] % charset.length);
     }
-    
+
     return result;
   };
 

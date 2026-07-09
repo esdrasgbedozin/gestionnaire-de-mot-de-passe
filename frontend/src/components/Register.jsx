@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { evaluateStrength } from "../utils/passwordStrength";
 import toast from "react-hot-toast";
 import {
   EyeIcon,
@@ -62,16 +63,10 @@ const Register = () => {
       special: /[!@#$%^&*(),.?":{}|<>]/.test(password),
     };
 
-    const score = Object.values(checks).filter(Boolean).length;
-    let feedback = "";
-
-    if (score === 0) feedback = "";
-    else if (score <= 2) feedback = "Weak";
-    else if (score <= 3) feedback = "Medium";
-    else if (score <= 4) feedback = "Strong";
-    else feedback = "Very Strong";
-
-    return { score, feedback, checks };
+    // Score + label via le moteur UNIQUE (zxcvbn, 0-4) ; les 5 checks restent
+    // pour la checklist pédagogique.
+    const { score, label } = evaluateStrength(password);
+    return { score, feedback: password ? label : "", checks };
   };
 
   const handleInputChange = (e) => {
@@ -109,7 +104,7 @@ const Register = () => {
     // Validation mot de passe
     if (!formData.password) {
       newErrors.password = "Password is required";
-    } else if (passwordStrength.score < 4) {
+    } else if (passwordStrength.score < 3) {
       newErrors.password = "Password does not meet security requirements";
     }
 
@@ -176,9 +171,7 @@ const Register = () => {
       case 2:
         return "bg-yellow-500";
       case 3:
-        return "bg-blue-500";
       case 4:
-      case 5:
         return "bg-green-500";
       default:
         return "bg-gray-300";
@@ -186,7 +179,7 @@ const Register = () => {
   };
 
   const getPasswordStrengthWidth = () => {
-    return `${(passwordStrength.score / 5) * 100}%`;
+    return `${((passwordStrength.score + 1) / 5) * 100}%`;
   };
 
   return (
@@ -214,7 +207,10 @@ const Register = () => {
               Create your account and secure your passwords
             </p>
             <p className="mt-4 inline-flex items-start gap-2 text-sm text-amber-700 dark:text-amber-500 text-left max-w-sm mx-auto bg-amber-50 dark:bg-amber-950/40 rounded-lg px-3 py-2">
-              <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <ExclamationTriangleIcon
+                className="h-4 w-4 flex-shrink-0 mt-0.5"
+                aria-hidden="true"
+              />
               <span>
                 Your master password can’t be recovered. If you forget it, your
                 data is gone for good — we can’t reset it.

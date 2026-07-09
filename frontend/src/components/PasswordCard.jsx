@@ -15,6 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 import passwordService from "../services/passwordService";
+import { strengthFromBackendScore } from "../utils/passwordStrength";
 
 const AUTO_HIDE_MS = 15000;
 
@@ -164,12 +165,10 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
     </span>
   );
 
-  // Fonction pour évaluer la force du mot de passe basée sur le score du backend
+  // Force du backend mappée sur le moteur UNIQUE (même vocabulaire que les meters).
   const getPasswordStrengthFromScore = (score) => {
-    if (!score || score <= 2) return { level: 1, text: "Weak", color: "red" };
-    if (score <= 3) return { level: 2, text: "Medium", color: "yellow" };
-    if (score <= 4) return { level: 3, text: "Strong", color: "green" };
-    return { level: 4, text: "Very Strong", color: "green" };
+    const s = strengthFromBackendScore(score);
+    return { text: s.label, color: s.color };
   };
 
   // Fonction pour obtenir l'icône de la catégorie
