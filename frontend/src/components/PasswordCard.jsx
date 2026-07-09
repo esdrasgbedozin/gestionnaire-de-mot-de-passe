@@ -234,7 +234,7 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
                 </div>
                 <div className="flex items-center">
                   <GlobeAltIcon className="h-4 w-4 mr-1" />
-                  {password.site_url || "Aucune URL"}
+                  {password.site_url || "No URL"}
                 </div>
                 <div className="flex items-center">
                   <CalendarIcon className="h-4 w-4 mr-1" />
@@ -382,7 +382,7 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
           <button
             onClick={() => copyToClipboard(password.username, "Username")}
             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
-            title="Copier"
+            aria-label="Copy" title="Copy"
           >
             <DocumentDuplicateIcon className="h-4 w-4" />
           </button>

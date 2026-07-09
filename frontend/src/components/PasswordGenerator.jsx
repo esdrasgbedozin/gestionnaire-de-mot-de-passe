@@ -19,7 +19,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
     excludeSimilar: true,
     excludeAmbiguous: false
   });
-  const [passwordStrength, setPasswordStrength] = useState({ level: 0, text: 'Aucun', color: 'gray' });
+  const [passwordStrength, setPasswordStrength] = useState({ level: 0, text: 'None', color: 'gray' });
 
   // Générer le mot de passe initial au montage du composant
   React.useEffect(() => {
@@ -28,7 +28,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
 
   // Calculer la force du mot de passe
   const calculatePasswordStrength = useCallback((password) => {
-    if (!password) return { level: 0, text: 'Aucun', color: 'gray' };
+    if (!password) return { level: 0, text: 'None', color: 'gray' };
     
     let score = 0;
     let feedback = [];
@@ -38,7 +38,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
     if (password.length >= 12) score += 2;
     if (password.length >= 16) score++;
     
-    // Types de caractères
+    // Character types
     if (/[a-z]/.test(password)) score++;
     if (/[A-Z]/.test(password)) score++;
     if (/[0-9]/.test(password)) score++;
@@ -55,11 +55,11 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
     const maxScore = 10;
     const percentage = Math.max(0, Math.min(100, (score / maxScore) * 100));
 
-    if (percentage < 30) return { level: 1, text: 'Très faible', color: 'red', percentage };
-    if (percentage < 50) return { level: 2, text: 'Faible', color: 'orange', percentage };
-    if (percentage < 70) return { level: 3, text: 'Moyen', color: 'yellow', percentage };
-    if (percentage < 85) return { level: 4, text: 'Fort', color: 'green', percentage };
-    return { level: 5, text: 'Très fort', color: 'emerald', percentage };
+    if (percentage < 30) return { level: 1, text: 'Very weak', color: 'red', percentage };
+    if (percentage < 50) return { level: 2, text: 'Weak', color: 'orange', percentage };
+    if (percentage < 70) return { level: 3, text: 'Medium', color: 'yellow', percentage };
+    if (percentage < 85) return { level: 4, text: 'Strong', color: 'green', percentage };
+    return { level: 5, text: 'Very strong', color: 'emerald', percentage };
   }, []);
 
   const generatePassword = useCallback(() => {
@@ -146,9 +146,9 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
   };
 
   const presets = [
-    { name: 'Basique', length: 12, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: false },
-    { name: 'Sécurisé', length: 16, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: true },
-    { name: 'Ultra sécurisé', length: 24, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: true },
+    { name: 'Basic', length: 12, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: false },
+    { name: 'Secure', length: 16, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: true },
+    { name: 'Ultra secure', length: 24, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: true },
     { name: 'PIN', length: 6, includeUppercase: false, includeLowercase: false, includeNumbers: true, includeSymbols: false }
   ];
 
@@ -169,7 +169,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
           <div className="flex items-center space-x-2">
             <AdjustmentsHorizontalIcon className="h-6 w-6 text-indigo-600" />
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              Générateur de mots de passe
+              Password generator
             </h2>
           </div>
           <button
@@ -197,14 +197,14 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
                 <button
                   onClick={copyToClipboard}
                   className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-                  title="Copier"
+                  aria-label="Copy generated password" title="Copy"
                 >
                   <DocumentDuplicateIcon className="h-4 w-4" />
                 </button>
                 <button
                   onClick={generatePassword}
                   className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900"
-                  title="Générer nouveau"
+                  aria-label="Generate a new password" title="Generate new"
                 >
                   <ArrowPathIcon className="h-4 w-4" />
                 </button>
@@ -214,11 +214,11 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
             {/* Indicateur de force */}
             <div className="mt-3">
               <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-600 dark:text-gray-400">Force du mot de passe:</span>
+                <span className="text-gray-600 dark:text-gray-400">Password strength:</span>
                 <span className={`font-medium ${
                   passwordStrength.color === 'emerald' ? 'text-emerald-600' :
                   passwordStrength.color === 'green' ? 'text-green-600' :
-                  passwordStrength.color === 'yellow' ? 'text-yellow-600' :
+                  passwordStrength.color === 'yellow' ? 'text-yellow-700 dark:text-yellow-500' :
                   passwordStrength.color === 'orange' ? 'text-orange-600' :
                   passwordStrength.color === 'red' ? 'text-red-600' :
                   'text-gray-600'
@@ -245,7 +245,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
           {/* Presets rapides */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Modèles prédéfinis
+              Presets
             </label>
             <div className="grid grid-cols-2 gap-2">
               {presets.map((preset) => (
@@ -263,7 +263,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
           {/* Longueur */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Longueur: {options.length} caractères
+              Length: {options.length} characters
             </label>
             <input
               type="range"
@@ -284,14 +284,14 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
           {/* Options de caractères */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Types de caractères
+              Character types
             </label>
             <div className="space-y-3">
               {[
-                { key: 'includeUppercase', label: 'Majuscules (A-Z)', example: 'ABCDEFG...' },
-                { key: 'includeLowercase', label: 'Minuscules (a-z)', example: 'abcdefg...' },
-                { key: 'includeNumbers', label: 'Chiffres (0-9)', example: '0123456...' },
-                { key: 'includeSymbols', label: 'Symboles (!@#...)', example: '!@#$%^&...' }
+                { key: 'includeUppercase', label: 'Uppercase (A-Z)', example: 'ABCDEFG...' },
+                { key: 'includeLowercase', label: 'Lowercase (a-z)', example: 'abcdefg...' },
+                { key: 'includeNumbers', label: 'Numbers (0-9)', example: '0123456...' },
+                { key: 'includeSymbols', label: 'Symbols (!@#...)', example: '!@#$%^&...' }
               ].map((option) => (
                 <div key={option.key} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -316,19 +316,19 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
             </div>
           </div>
 
-          {/* Options avancées */}
+          {/* Advanced options */}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-              Options avancées
+              Advanced options
             </label>
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
                   <label htmlFor="excludeSimilar" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Exclure les caractères similaires
+                    Exclude similar characters
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Éviter i, l, 1, L, o, 0, O
+                    Avoid i, l, 1, L, o, 0, O
                   </p>
                 </div>
                 <input
@@ -343,10 +343,10 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
               <div className="flex items-center justify-between">
                 <div>
                   <label htmlFor="excludeAmbiguous" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Exclure les caractères ambigus
+                    Exclude ambiguous characters
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Éviter {`{ } [ ] ( ) / \\ ' " ~ , ; . < >`}
+                    Avoid {`{ } [ ] ( ) / \\ ' " ~ , ; . < >`}
                   </p>
                 </div>
                 <input
@@ -366,7 +366,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
               onClick={onClose}
               className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-500"
             >
-              Fermer
+              Close
             </button>
             {onUsePassword && (
               <button
@@ -374,7 +374,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
                 className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 flex items-center"
               >
                 <CheckIcon className="h-4 w-4 mr-2" />
-                Utiliser ce mot de passe
+                Use this password
               </button>
             )}
           </div>
