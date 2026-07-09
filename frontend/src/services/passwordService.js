@@ -1,20 +1,22 @@
-import axios from 'axios';
+import axios from "axios";
+import { classifyApiError } from "./apiError";
 
 // Configuration de base
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080/api';
+const API_BASE_URL =
+  process.env.REACT_APP_API_URL || "http://localhost:8080/api";
 
 // Instance axios spécialisée pour les mots de passe
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
 // Intercepteur pour ajouter le token automatiquement
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem("access_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -22,25 +24,31 @@ api.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Intercepteur pour gérer les erreurs d'authentification
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    console.error('🔐 PasswordService: API Error:', error.response?.data || error.message);
-    
+    console.error(
+      "🔐 PasswordService: API Error:",
+      error.response?.data || error.message,
+    );
+
     if (error.response?.status === 401) {
       // Token expiré, rediriger vers login
-      console.warn('🔐 PasswordService: Token expired, cleaning up...');
+      console.warn("🔐 PasswordService: Token expired, cleaning up...");
       localStorage.clear();
-      window.location.href = '/login';
+      window.location.href = "/login";
     } else if (error.response?.status === 500) {
-      console.error('🔐 PasswordService: Internal server error:', error.response.data);
+      console.error(
+        "🔐 PasswordService: Internal server error:",
+        error.response.data,
+      );
     }
     return Promise.reject(error);
-  }
+  },
 );
 
 const passwordService = {
@@ -54,30 +62,27 @@ const passwordService = {
         limit: limit.toString(),
       });
 
-      if (category && category !== 'all') {
-        params.append('category', category);
+      if (category && category !== "all") {
+        params.append("category", category);
       }
 
       if (search) {
-        params.append('search', search);
+        params.append("search", search);
       }
 
-      console.log('🔐 PasswordService: Making request to /passwords/ with params:', params.toString());
-      console.log('🔐 PasswordService: Token in localStorage:', localStorage.getItem('access_token') ? 'Present' : 'Missing');
-      
       const response = await api.get(`/passwords/?${params.toString()}`);
-      console.log('🔐 PasswordService: Raw API response:', response.data);
-      
+
       return {
         success: true,
         data: response.data,
       };
     } catch (error) {
-      console.error('🔐 PasswordService: Error fetching passwords:', error);
-      console.error('🔐 PasswordService: Error response:', error.response?.data);
+      const c = classifyApiError(error, "Failed to load your vault.");
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to fetch passwords',
+        error: c.message,
+        kind: c.kind,
+        retryable: c.retryable,
       };
     }
   },
@@ -93,9 +98,12 @@ const passwordService = {
         data: response.data,
       };
     } catch (error) {
+      const c = classifyApiError(error, "Couldn't retrieve this password.");
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to fetch password',
+        error: c.message,
+        kind: c.kind,
+        retryable: c.retryable,
       };
     }
   },
@@ -105,7 +113,7 @@ const passwordService = {
    */
   async createPassword(passwordData) {
     try {
-      const response = await api.post('/passwords/', passwordData);
+      const response = await api.post("/passwords/", passwordData);
       return {
         success: true,
         data: response.data,
@@ -113,7 +121,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to create password',
+        error: error.response?.data?.error || "Failed to create password",
       };
     }
   },
@@ -131,7 +139,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to update password',
+        error: error.response?.data?.error || "Failed to update password",
       };
     }
   },
@@ -148,7 +156,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to delete password',
+        error: error.response?.data?.error || "Failed to delete password",
       };
     }
   },
@@ -158,7 +166,7 @@ const passwordService = {
    */
   async generatePassword(options = {}) {
     try {
-      const response = await api.post('/passwords/generate', options);
+      const response = await api.post("/passwords/generate", options);
       return {
         success: true,
         data: response.data,
@@ -166,7 +174,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to generate password',
+        error: error.response?.data?.error || "Failed to generate password",
       };
     }
   },
@@ -176,7 +184,7 @@ const passwordService = {
    */
   async evaluatePasswordStrength(password) {
     try {
-      const response = await api.post('/passwords/strength', { password });
+      const response = await api.post("/passwords/strength", { password });
       return {
         success: true,
         data: response.data,
@@ -184,7 +192,8 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to evaluate password strength',
+        error:
+          error.response?.data?.error || "Failed to evaluate password strength",
       };
     }
   },
@@ -194,7 +203,7 @@ const passwordService = {
    */
   async getCategories() {
     try {
-      const response = await api.get('/passwords/categories');
+      const response = await api.get("/passwords/categories");
       return {
         success: true,
         data: response.data,
@@ -202,7 +211,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to fetch categories',
+        error: error.response?.data?.error || "Failed to fetch categories",
       };
     }
   },
@@ -212,7 +221,7 @@ const passwordService = {
    */
   async getPresets() {
     try {
-      const response = await api.get('/passwords/presets');
+      const response = await api.get("/passwords/presets");
       return {
         success: true,
         data: response.data,
@@ -220,7 +229,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to fetch presets',
+        error: error.response?.data?.error || "Failed to fetch presets",
       };
     }
   },
@@ -240,7 +249,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to toggle favorite',
+        error: error.response?.data?.error || "Failed to toggle favorite",
       };
     }
   },
@@ -256,7 +265,7 @@ const passwordService = {
 
       // Ajouter les filtres
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
+        if (value !== null && value !== undefined && value !== "") {
           params.append(key, value.toString());
         }
       });
@@ -269,7 +278,7 @@ const passwordService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Failed to search passwords',
+        error: error.response?.data?.error || "Failed to search passwords",
       };
     }
   },
@@ -297,7 +306,7 @@ const passwordService = {
           // If we can't decrypt one password, include it without the password field
           decryptedPasswords.push({
             ...pwd,
-            password: '[DECRYPTION_FAILED]'
+            password: "[DECRYPTION_FAILED]",
           });
         }
       }
@@ -306,13 +315,13 @@ const passwordService = {
         success: true,
         data: {
           passwords: decryptedPasswords,
-          total: decryptedPasswords.length
-        }
+          total: decryptedPasswords.length,
+        },
       };
     } catch (error) {
       return {
         success: false,
-        error: error.message || 'Failed to export passwords',
+        error: error.message || "Failed to export passwords",
       };
     }
   },

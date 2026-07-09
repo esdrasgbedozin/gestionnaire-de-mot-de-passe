@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
-import { 
-  PlusIcon, 
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useLocation } from "react-router-dom";
+import {
+  PlusIcon,
   MagnifyingGlassIcon,
   FunnelIcon,
   KeyIcon,
@@ -11,13 +11,15 @@ import {
   EyeSlashIcon,
   DocumentDuplicateIcon,
   PencilIcon,
-  TrashIcon
-} from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
-import passwordService from '../services/passwordService';
-import PasswordCard from '../components/PasswordCard';
-import PasswordForm from '../components/PasswordForm';
-import PasswordGenerator from '../components/PasswordGenerator';
+  TrashIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+} from "@heroicons/react/24/outline";
+import { toast } from "react-hot-toast";
+import passwordService from "../services/passwordService";
+import PasswordCard from "../components/PasswordCard";
+import PasswordForm from "../components/PasswordForm";
+import PasswordGenerator from "../components/PasswordGenerator";
 
 const Vault = () => {
   const { user } = useAuth();
@@ -25,12 +27,13 @@ const Vault = () => {
   const [passwords, setPasswords] = useState([]);
   const [filteredPasswords, setFilteredPasswords] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [showAddForm, setShowAddForm] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
   const [editingPassword, setEditingPassword] = useState(null);
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
+  const [viewMode, setViewMode] = useState("grid"); // 'grid' ou 'list'
+  const [loadError, setLoadError] = useState(null); // erreur de chargement du coffre (distincte du vide)
 
   // Initialiser le terme de recherche depuis l'état de navigation
   useEffect(() => {
@@ -41,21 +44,53 @@ const Vault = () => {
 
   // Fonction pour calculer les compteurs de catégories
   const getCategoryCount = (categoryId) => {
-    if (categoryId === 'all') return passwords.length;
-    return passwords.filter(password => 
-      password.category && password.category.toLowerCase() === categoryId.toLowerCase()
+    if (categoryId === "all") return passwords.length;
+    return passwords.filter(
+      (password) =>
+        password.category &&
+        password.category.toLowerCase() === categoryId.toLowerCase(),
     ).length;
   };
 
   // Catégories disponibles avec compteurs dynamiques (synchronisées avec PasswordForm)
   const categories = [
-    { id: 'all', name: 'All', icon: KeyIcon, count: getCategoryCount('all') },
-    { id: 'personal', name: 'Personal', icon: ShieldCheckIcon, count: getCategoryCount('personal') },
-    { id: 'work', name: 'Work', icon: ShieldCheckIcon, count: getCategoryCount('work') },
-    { id: 'social', name: 'Social Media', icon: ShieldCheckIcon, count: getCategoryCount('social') },
-    { id: 'banking', name: 'Banking', icon: ShieldCheckIcon, count: getCategoryCount('banking') },
-    { id: 'shopping', name: 'Shopping', icon: ShieldCheckIcon, count: getCategoryCount('shopping') },
-    { id: 'other', name: 'Other', icon: ShieldCheckIcon, count: getCategoryCount('other') },
+    { id: "all", name: "All", icon: KeyIcon, count: getCategoryCount("all") },
+    {
+      id: "personal",
+      name: "Personal",
+      icon: ShieldCheckIcon,
+      count: getCategoryCount("personal"),
+    },
+    {
+      id: "work",
+      name: "Work",
+      icon: ShieldCheckIcon,
+      count: getCategoryCount("work"),
+    },
+    {
+      id: "social",
+      name: "Social Media",
+      icon: ShieldCheckIcon,
+      count: getCategoryCount("social"),
+    },
+    {
+      id: "banking",
+      name: "Banking",
+      icon: ShieldCheckIcon,
+      count: getCategoryCount("banking"),
+    },
+    {
+      id: "shopping",
+      name: "Shopping",
+      icon: ShieldCheckIcon,
+      count: getCategoryCount("shopping"),
+    },
+    {
+      id: "other",
+      name: "Other",
+      icon: ShieldCheckIcon,
+      count: getCategoryCount("other"),
+    },
   ];
 
   // Charger les mots de passe au montage du composant
@@ -70,17 +105,25 @@ const Vault = () => {
 
       // Filtrer par recherche
       if (searchTerm) {
-        filtered = filtered.filter(password => 
-          password.site_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          password.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (password.notes && password.notes.toLowerCase().includes(searchTerm.toLowerCase()))
+        filtered = filtered.filter(
+          (password) =>
+            password.site_name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            password.username
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase()) ||
+            (password.notes &&
+              password.notes.toLowerCase().includes(searchTerm.toLowerCase())),
         );
       }
 
       // Filtrer par catégorie
-      if (selectedCategory !== 'all') {
-        filtered = filtered.filter(password => 
-          password.category && password.category.toLowerCase() === selectedCategory.toLowerCase()
+      if (selectedCategory !== "all") {
+        filtered = filtered.filter(
+          (password) =>
+            password.category &&
+            password.category.toLowerCase() === selectedCategory.toLowerCase(),
         );
       }
 
@@ -93,16 +136,23 @@ const Vault = () => {
   const fetchPasswords = async () => {
     try {
       setLoading(true);
+      setLoadError(null);
       const result = await passwordService.getPasswords();
 
       if (result.success) {
         setPasswords(result.data.passwords || []);
       } else {
-        throw new Error(result.error);
+        // On garde l'erreur en ÉTAT (message actionnable + Retry), pas juste un toast
+        // fugace — et on ne la confond pas avec « coffre vide ».
+        setLoadError(
+          result.error ||
+            "Can't reach the server — check your connection and try again.",
+        );
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Passwords can not be loaded');
+      setLoadError(
+        "Can't reach the server — check your connection and try again.",
+      );
     } finally {
       setLoading(false);
     }
@@ -117,22 +167,22 @@ const Vault = () => {
     try {
       // Récupérer le mot de passe déchiffré
       const result = await passwordService.getPassword(password.id);
-      
+
       if (result.success) {
         // Passer le mot de passe avec le champ 'password' déchiffré
         setEditingPassword(result.data);
         setShowAddForm(true);
       } else {
-        toast.error('Failed to load password for editing');
+        toast.error("Failed to load password for editing");
       }
     } catch (error) {
-      console.error('Error loading password for editing:', error);
-      toast.error('Failed to load password for editing');
+      console.error("Error loading password for editing:", error);
+      toast.error("Failed to load password for editing");
     }
   };
 
   const handleDeletePassword = async (passwordId) => {
-    if (!window.confirm('Are you sure you want to delete this password?')) {
+    if (!window.confirm("Are you sure you want to delete this password?")) {
       return;
     }
 
@@ -140,14 +190,14 @@ const Vault = () => {
       const result = await passwordService.deletePassword(passwordId);
 
       if (result.success) {
-        toast.success('Password deleted successfully');
+        toast.success("Password deleted successfully");
         fetchPasswords(); // Recharger la liste
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Failed to delete password');
+      console.error("Erreur:", error);
+      toast.error("Failed to delete password");
     }
   };
 
@@ -155,7 +205,7 @@ const Vault = () => {
     setShowAddForm(false);
     setEditingPassword(null);
     fetchPasswords(); // Recharger la liste
-    toast.success(editingPassword ? 'Password updated' : 'Password added');
+    toast.success(editingPassword ? "Password updated" : "Password added");
   };
 
   if (loading) {
@@ -163,7 +213,9 @@ const Vault = () => {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading your vault...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">
+            Loading your vault...
+          </p>
         </div>
       </div>
     );
@@ -211,7 +263,9 @@ const Vault = () => {
           <div className="w-64 flex-shrink-0">
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
               <div className="p-4">
-                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">Categories</h3>
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-4">
+                  Categories
+                </h3>
                 <nav className="space-y-1">
                   {categories.map((category) => (
                     <button
@@ -219,8 +273,8 @@ const Vault = () => {
                       onClick={() => setSelectedCategory(category.id)}
                       className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-md transition-colors ${
                         selectedCategory === category.id
-                          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300'
-                          : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                          ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
+                          : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700"
                       }`}
                     >
                       <div className="flex items-center">
@@ -255,19 +309,31 @@ const Vault = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => setViewMode('grid')}
-                      className={`p-2 rounded-md ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-400 hover:text-gray-600'}`}
+                      onClick={() => setViewMode("grid")}
+                      className={`p-2 rounded-md ${viewMode === "grid" ? "bg-indigo-100 text-indigo-700" : "text-gray-400 hover:text-gray-600"}`}
                     >
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                      <svg
+                        className="h-5 w-5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
                         <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                       </svg>
                     </button>
                     <button
-                      onClick={() => setViewMode('list')}
-                      className={`p-2 rounded-md ${viewMode === 'list' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-400 hover:text-gray-600'}`}
+                      onClick={() => setViewMode("list")}
+                      className={`p-2 rounded-md ${viewMode === "list" ? "bg-indigo-100 text-indigo-700" : "text-gray-400 hover:text-gray-600"}`}
                     >
-                      <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                      <svg
+                        className="h-5 w-5"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -276,17 +342,35 @@ const Vault = () => {
             </div>
 
             {/* Liste des mots de passe */}
-            {filteredPasswords.length === 0 ? (
+            {loadError ? (
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-900/60 p-8 text-center">
+                <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  We couldn't load your vault
+                </h3>
+                <p className="text-gray-500 dark:text-gray-400 mb-6">
+                  {loadError}
+                </p>
+                <button
+                  onClick={fetchPasswords}
+                  className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+                >
+                  <ArrowPathIcon className="h-4 w-4 mr-2" />
+                  Try again
+                </button>
+              </div>
+            ) : filteredPasswords.length === 0 ? (
               <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
                 <KeyIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                  {passwords.length === 0 ? 'No passwords yet' : 'No results found'}
+                  {passwords.length === 0
+                    ? "No passwords yet"
+                    : "No results found"}
                 </h3>
                 <p className="text-gray-500 dark:text-gray-400 mb-6">
-                  {passwords.length === 0 
-                    ? 'Start by adding your first password'
-                    : 'Try adjusting your search criteria'
-                  }
+                  {passwords.length === 0
+                    ? "Start by adding your first password"
+                    : "Try adjusting your search criteria"}
                 </p>
                 {passwords.length === 0 && (
                   <button
@@ -299,7 +383,13 @@ const Vault = () => {
                 )}
               </div>
             ) : (
-              <div className={viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6' : 'space-y-4'}>
+              <div
+                className={
+                  viewMode === "grid"
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                    : "space-y-4"
+                }
+              >
                 {filteredPasswords.map((password) => (
                   <PasswordCard
                     key={password.id}
@@ -328,9 +418,7 @@ const Vault = () => {
       )}
 
       {showGenerator && (
-        <PasswordGenerator
-          onClose={() => setShowGenerator(false)}
-        />
+        <PasswordGenerator onClose={() => setShowGenerator(false)} />
       )}
     </div>
   );
