@@ -10,6 +10,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   SparklesIcon,
+  ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
 
 const Register = () => {
@@ -212,6 +213,13 @@ const Register = () => {
             <p className="mt-3 text-gray-600 dark:text-gray-400 text-lg">
               Create your account and secure your passwords
             </p>
+            <p className="mt-4 inline-flex items-start gap-2 text-sm text-amber-700 dark:text-amber-500 text-left max-w-sm mx-auto bg-amber-50 dark:bg-amber-950/40 rounded-lg px-3 py-2">
+              <ExclamationTriangleIcon className="h-4 w-4 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <span>
+                Your master password can’t be recovered. If you forget it, your
+                data is gone for good — we can’t reset it.
+              </span>
+            </p>
           </div>
 
           {/* Form */}
@@ -324,7 +332,7 @@ const Register = () => {
                           passwordStrength.score <= 2
                             ? "text-red-600"
                             : passwordStrength.score <= 3
-                              ? "text-yellow-600"
+                              ? "text-yellow-700 dark:text-yellow-500"
                               : "text-green-600"
                         } flex items-center`}
                       >

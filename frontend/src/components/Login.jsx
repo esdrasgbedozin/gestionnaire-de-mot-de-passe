@@ -127,6 +127,10 @@ const Login = () => {
             <p className="mt-3 text-gray-600 dark:text-gray-400 text-lg">
               Sign in to your account to access your passwords
             </p>
+            <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
+              <LockClosedIcon className="h-4 w-4" aria-hidden="true" />
+              Encrypted end-to-end — we never see your master password.
+            </p>
           </div>
 
           {/* Form */}
