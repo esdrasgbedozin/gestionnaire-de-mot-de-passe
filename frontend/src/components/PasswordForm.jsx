@@ -27,6 +27,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
   const [passwordStrength, setPasswordStrength] = useState({
     text: "None",
     color: "gray",
+    percent: 0,
   });
   const [errors, setErrors] = useState({});
 
@@ -60,7 +61,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
   const calculatePasswordStrength = (pwd) => {
     const s = evaluateStrength(pwd);
-    return { text: s.label, color: s.color };
+    return { text: s.label, color: s.color, percent: s.percent };
   };
 
   const generatePassword = (options = {}) => {
@@ -335,6 +336,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
                 </div>
                 <div className="mt-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div
+                    data-testid="password-strength-bar"
                     className={`h-2 rounded-full transition-all duration-300 ${
                       passwordStrength.color === "green"
                         ? "bg-green-500"
@@ -342,7 +344,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
                           ? "bg-yellow-500"
                           : "bg-red-500"
                     }`}
-                    style={{ width: `${(passwordStrength.level / 3) * 100}%` }}
+                    style={{ width: `${passwordStrength.percent}%` }}
                   ></div>
                 </div>
               </div>
