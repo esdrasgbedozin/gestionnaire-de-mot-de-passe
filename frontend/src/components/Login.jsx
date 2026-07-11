@@ -210,34 +210,29 @@ const Login = () => {
                 )}
               </div>
 
-              {/* Remember me & Forgot password */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="rememberMe"
-                    name="rememberMe"
-                    type="checkbox"
-                    checked={formData.rememberMe}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
-                  />
-                  <label
-                    htmlFor="rememberMe"
-                    className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
-                  >
-                    Remember me
-                  </label>
-                </div>
-
-                <div className="text-sm">
-                  <Link
-                    to="/forgot-password"
-                    className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
+              {/* Remember me */}
+              <div className="flex items-center">
+                <input
+                  id="rememberMe"
+                  name="rememberMe"
+                  type="checkbox"
+                  checked={formData.rememberMe}
+                  onChange={handleInputChange}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                />
+                <label
+                  htmlFor="rememberMe"
+                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
+                >
+                  Remember me
+                </label>
               </div>
+
+              {/* Zero-knowledge reassurance : remplace un "Forgot password?" trompeur.
+                  Aucun reset n'existe (ni back ni route) — par design zero-knowledge. */}
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Master password can't be reset — it never leaves your device.
+              </p>
 
               {/* Submit Button */}
               <div>
