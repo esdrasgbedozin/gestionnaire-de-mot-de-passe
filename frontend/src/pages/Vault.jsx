@@ -20,6 +20,7 @@ import passwordService from "../services/passwordService";
 import PasswordCard from "../components/PasswordCard";
 import Button from "../components/ui/Button";
 import Card from "../components/ui/Card";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 import PasswordForm from "../components/PasswordForm";
 import PasswordGenerator from "../components/PasswordGenerator";
 
@@ -36,6 +37,7 @@ const Vault = () => {
   const [editingPassword, setEditingPassword] = useState(null);
   const [viewMode, setViewMode] = useState("grid"); // 'grid' ou 'list'
   const [loadError, setLoadError] = useState(null); // erreur de chargement du coffre (distincte du vide)
+  const [deleteId, setDeleteId] = useState(null); // id de l'entrée en attente de confirmation de suppression
 
   // Initialiser le terme de recherche depuis l'état de navigation
   useEffect(() => {
@@ -183,22 +185,24 @@ const Vault = () => {
     }
   };
 
-  const handleDeletePassword = async (passwordId) => {
-    if (!window.confirm("Are you sure you want to delete this password?")) {
-      return;
-    }
+  // Ouvre la modale de confirmation (plus de window.confirm natif).
+  const handleDeletePassword = (passwordId) => {
+    setDeleteId(passwordId);
+  };
 
+  const confirmDelete = async () => {
+    const passwordId = deleteId;
+    setDeleteId(null);
+    if (!passwordId) return;
     try {
       const result = await passwordService.deletePassword(passwordId);
-
       if (result.success) {
         toast.success("Password deleted successfully");
-        fetchPasswords(); // Recharger la liste
+        fetchPasswords();
       } else {
         throw new Error(result.error);
       }
     } catch (error) {
-      console.error("Erreur:", error);
       toast.error("Failed to delete password");
     }
   };
@@ -417,6 +421,16 @@ const Vault = () => {
       {showGenerator && (
         <PasswordGenerator onClose={() => setShowGenerator(false)} />
       )}
+
+      <ConfirmDialog
+        open={!!deleteId}
+        variant="danger"
+        title="Delete this password?"
+        message="This permanently removes the entry from your vault and can't be undone."
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteId(null)}
+      />
     </div>
   );
 };

@@ -19,11 +19,14 @@ import passwordService from "../services/passwordService";
 import userService from "../services/userService";
 import authService from "../services/authService";
 import ThemeToggle from "../components/ThemeToggle";
+import Button from "../components/ui/Button";
+import ConfirmDialog from "../components/ui/ConfirmDialog";
 
 const Settings = () => {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("profile");
+  const [confirmExport, setConfirmExport] = useState(false);
   const [loading, setLoading] = useState(false);
 
   // Profile settings
@@ -132,6 +135,7 @@ const Settings = () => {
   };
 
   const handleExportData = async () => {
+    setConfirmExport(false);
     setExportLoading(true);
     try {
       const result = await passwordService.exportPasswords();
@@ -557,20 +561,16 @@ const Settings = () => {
                       Export your data
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 mb-4">
-                      Download a copy of your data for your personal records.
+                      Download a copy of your data. The file contains your
+                      passwords in plain text — store it somewhere safe.
                     </p>
-                    <button
-                      onClick={handleExportData}
-                      disabled={exportLoading}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center"
+                    <Button
+                      onClick={() => setConfirmExport(true)}
+                      loading={exportLoading}
                     >
-                      {exportLoading ? (
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                      ) : (
-                        <KeyIcon className="h-4 w-4 mr-2" />
-                      )}
+                      {!exportLoading && <KeyIcon className="h-4 w-4" />}
                       Export my data
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -578,6 +578,16 @@ const Settings = () => {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmExport}
+        variant="danger"
+        title="Export your passwords in plain text?"
+        message="The downloaded file will contain every password unencrypted. Anyone who opens it can read them. Keep it somewhere safe and delete it when you're done."
+        confirmLabel="Export anyway"
+        onConfirm={handleExportData}
+        onCancel={() => setConfirmExport(false)}
+      />
     </div>
   );
 };
