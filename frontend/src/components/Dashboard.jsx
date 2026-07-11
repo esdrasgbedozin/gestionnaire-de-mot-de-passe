@@ -113,7 +113,7 @@ const Dashboard = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success("👋 Logged out successfully!");
+      toast.success("Logged out successfully!");
     } catch (error) {
       toast.error("Error during logout");
     }
@@ -240,7 +240,7 @@ const Dashboard = () => {
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400">
                   Secure your digital life,{" "}
-                  {user?.username || user?.email?.split("@")[0]} ! 🔐
+                  {user?.username || user?.email?.split("@")[0]} !
                 </p>
               </div>
 

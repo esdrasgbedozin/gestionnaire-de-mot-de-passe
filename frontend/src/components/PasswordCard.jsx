@@ -12,10 +12,12 @@ import {
   TagIcon,
   ExclamationTriangleIcon,
   ClockIcon,
+  DocumentTextIcon,
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 import passwordService from "../services/passwordService";
 import { strengthFromBackendScore } from "../utils/passwordStrength";
+import { categoryIcon } from "../utils/categoryIcon";
 
 const AUTO_HIDE_MS = 15000;
 
@@ -171,18 +173,8 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
     return { text: s.label, color: s.color };
   };
 
-  // Fonction pour obtenir l'icône de la catégorie
-  const getCategoryIcon = (category) => {
-    const icons = {
-      social: "📱",
-      work: "💼",
-      personal: "👤",
-      banking: "🏦",
-      shopping: "🛒",
-      default: "🔐",
-    };
-    return icons[category] || icons.default;
-  };
+  // Icône de catégorie : jeu d'icônes monochrome partagé (plus d'emoji — P1).
+  const CategoryIcon = categoryIcon(password.category);
 
   // Formater la date en anglais
   const formatDate = (dateString) => {
@@ -204,7 +196,7 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
             {/* Icône et informations principales */}
             <div className="flex-shrink-0">
               <div className="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xl">
-                {getCategoryIcon(password.category)}
+                <CategoryIcon className="h-6 w-6" aria-hidden="true" />
               </div>
             </div>
 
@@ -276,7 +268,8 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
             <button
               onClick={() => onEdit(password)}
               className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900"
-              aria-label="Edit this entry" title="Edit"
+              aria-label="Edit this entry"
+              title="Edit"
             >
               <PencilIcon className="h-4 w-4" />
             </button>
@@ -284,7 +277,8 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
             <button
               onClick={() => onDelete(password.id)}
               className="p-2 text-red-400 hover:text-red-600 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 hover:bg-red-50 dark:hover:bg-red-900"
-              aria-label="Delete this entry" title="Delete"
+              aria-label="Delete this entry"
+              title="Delete"
             >
               <TrashIcon className="h-4 w-4" />
             </button>
@@ -323,7 +317,7 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xl">
-            {getCategoryIcon(password.category)}
+            <CategoryIcon className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
             <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate max-w-40">
@@ -356,14 +350,16 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
           <button
             onClick={() => onEdit(password)}
             className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900"
-            aria-label="Edit this entry" title="Edit"
+            aria-label="Edit this entry"
+            title="Edit"
           >
             <PencilIcon className="h-4 w-4" />
           </button>
           <button
             onClick={() => onDelete(password.id)}
             className="p-2 text-red-400 hover:text-red-600 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 hover:bg-red-50 dark:hover:bg-red-900"
-            aria-label="Delete this entry" title="Delete"
+            aria-label="Delete this entry"
+            title="Delete"
           >
             <TrashIcon className="h-4 w-4" />
           </button>
@@ -381,7 +377,8 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
           <button
             onClick={() => copyToClipboard(password.username, "Username")}
             className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded"
-            aria-label="Copy" title="Copy"
+            aria-label="Copy"
+            title="Copy"
           >
             <DocumentDuplicateIcon className="h-4 w-4" />
           </button>
@@ -453,8 +450,15 @@ const PasswordCard = ({ password, viewMode = "grid", onEdit, onDelete }) => {
         {/* Notes (si présentes) */}
         {password.notes && (
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            <p className="truncate" title={password.notes}>
-              📝 {password.notes}
+            <p
+              className="flex items-center gap-1.5 truncate"
+              title={password.notes}
+            >
+              <DocumentTextIcon
+                className="h-4 w-4 flex-shrink-0"
+                aria-hidden="true"
+              />
+              <span className="truncate">{password.notes}</span>
             </p>
           </div>
         )}

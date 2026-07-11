@@ -32,12 +32,12 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
   const [errors, setErrors] = useState({});
 
   const categories = [
-    { value: "personal", label: "Personal", icon: "👤" },
-    { value: "work", label: "Work", icon: "💼" },
-    { value: "social", label: "Social Media", icon: "📱" },
-    { value: "banking", label: "Banking", icon: "🏦" },
-    { value: "shopping", label: "Shopping", icon: "🛒" },
-    { value: "other", label: "Other", icon: "🔐" },
+    { value: "personal", label: "Personal" },
+    { value: "work", label: "Work" },
+    { value: "social", label: "Social Media" },
+    { value: "banking", label: "Banking" },
+    { value: "shopping", label: "Shopping" },
+    { value: "other", label: "Other" },
   ];
 
   // Initialiser le formulaire avec les données du mot de passe à éditer
@@ -404,7 +404,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
             >
               {categories.map((cat) => (
                 <option key={cat.value} value={cat.value}>
-                  {cat.icon} {cat.label}
+                  {cat.label}
                 </option>
               ))}
             </select>

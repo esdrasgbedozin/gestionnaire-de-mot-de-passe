@@ -81,7 +81,7 @@ const Login = () => {
       const result = await login(formData.email, formData.password);
 
       if (result.success) {
-        toast.success("🎉 Welcome back!", {
+        toast.success("Welcome back!", {
           duration: 4000,
           style: {
             borderRadius: "12px",

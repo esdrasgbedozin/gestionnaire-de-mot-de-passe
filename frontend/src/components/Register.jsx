@@ -141,7 +141,7 @@ const Register = () => {
       );
 
       if (result.success) {
-        toast.success("🎉 Account created successfully! Welcome!", {
+        toast.success("Account created successfully! Welcome!", {
           duration: 4000,
           style: {
             borderRadius: "12px",
