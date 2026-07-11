@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import toast from "react-hot-toast";
+import Button from "./ui/Button";
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -240,24 +241,15 @@ const Login = () => {
 
               {/* Submit Button */}
               <div>
-                <button
+                <Button
                   type="submit"
-                  disabled={loading}
-                  className="group relative w-full flex justify-center py-3 px-4 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm"
+                  size="lg"
+                  loading={loading}
+                  className="w-full"
                 >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Signing in...
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <LockClosedIcon className="h-4 w-4 mr-2" />
-                      Sign in
-                      <ArrowRightIcon className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  )}
-                </button>
+                  {!loading && <LockClosedIcon className="h-4 w-4" />}
+                  {loading ? "Signing in..." : "Sign in"}
+                </Button>
               </div>
             </div>
 

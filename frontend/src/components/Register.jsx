@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { evaluateStrength } from "../utils/passwordStrength";
 import toast from "react-hot-toast";
+import Button from "./ui/Button";
 import {
   EyeIcon,
   EyeSlashIcon,
@@ -460,24 +461,15 @@ const Register = () => {
 
               {/* Submit Button */}
               <div>
-                <button
+                <Button
                   type="submit"
-                  disabled={loading}
-                  className="group relative w-full flex justify-center py-3 px-4 rounded-xl text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 shadow-sm"
+                  size="lg"
+                  loading={loading}
+                  className="w-full"
                 >
-                  {loading ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating account...
-                    </div>
-                  ) : (
-                    <div className="flex items-center">
-                      <ShieldCheckIcon className="h-4 w-4 mr-2" />
-                      Create account
-                      <SparklesIcon className="h-4 w-4 ml-2 group-hover:animate-pulse" />
-                    </div>
-                  )}
-                </button>
+                  {!loading && <ShieldCheckIcon className="h-4 w-4" />}
+                  {loading ? "Creating account..." : "Create account"}
+                </Button>
               </div>
             </div>
 
