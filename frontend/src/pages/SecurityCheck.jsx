@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import {
   ShieldCheckIcon,
   ExclamationTriangleIcon,
@@ -11,11 +11,15 @@ import {
   EyeIcon,
   EyeSlashIcon,
   ClockIcon,
-  KeyIcon
-} from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
-import passwordService from '../services/passwordService';
-import { evaluatePasswordStrength, getWeakPasswords, formatRelativeDate } from '../utils/passwordStats';
+  KeyIcon,
+} from "@heroicons/react/24/outline";
+import { toast } from "react-hot-toast";
+import passwordService from "../services/passwordService";
+import {
+  evaluatePasswordStrength,
+  getWeakPasswords,
+  formatRelativeDate,
+} from "../utils/passwordStats";
 
 const SecurityCheck = () => {
   const { user } = useAuth();
@@ -34,67 +38,85 @@ const SecurityCheck = () => {
     try {
       setLoading(true);
       const result = await passwordService.getPasswords();
-      
+
       if (result.success) {
         const passwordList = result.data.passwords || [];
         setPasswords(passwordList);
-        
-        // Récupérer les mots de passe déchiffrés pour l'analyse
+
+        // Déchiffrer chaque entrée pour l'analyse. On COMPTE les échecs au lieu de
+        // les avaler en silence : un score calculé sur un sous-ensemble sans le dire
+        // serait un mensonge sur sa couverture (l'écran dont le job est la confiance).
         const decryptedPasswords = [];
+        let notAnalyzed = 0;
         for (const pwd of passwordList) {
           try {
             const decryptedResult = await passwordService.getPassword(pwd.id);
             if (decryptedResult.success) {
               decryptedPasswords.push({
                 ...pwd,
-                password: decryptedResult.data.password
+                password: decryptedResult.data.password,
               });
             } else {
-              // Si le déchiffrement échoue, ignorer ce mot de passe dans l'analyse
-              console.warn(`Impossible de déchiffrer le mot de passe ${pwd.id}`);
+              notAnalyzed++;
             }
           } catch (error) {
-            console.warn(`Erreur lors du déchiffrement du mot de passe ${pwd.id}:`, error);
+            notAnalyzed++;
           }
         }
-        
-        await performSecurityAnalysis(decryptedPasswords);
+
+        await performSecurityAnalysis(decryptedPasswords, {
+          total: passwordList.length,
+          notAnalyzed,
+        });
       } else {
-        toast.error('Failed to load your passwords');
+        toast.error("Failed to load your passwords");
       }
     } catch (error) {
-      console.error('Erreur lors du chargement:', error);
-      toast.error('Failed to load your passwords');
+      console.error("Erreur lors du chargement:", error);
+      toast.error("Failed to load your passwords");
     } finally {
       setLoading(false);
     }
   };
 
-  const performSecurityAnalysis = async (passwordList) => {
+  const performSecurityAnalysis = async (
+    passwordList,
+    coverage = { total: passwordList.length, notAnalyzed: 0 },
+  ) => {
     try {
       setAnalyzing(true);
-      
-      // Analyse des mots de passe
+
+      // Analyse des mots de passe. `total` = entrées RÉELLEMENT analysées (déchiffrées) ;
+      // `notAnalyzed` = entrées exclues faute de déchiffrement (couverture honnête).
       const analysis = {
         total: passwordList.length,
+        notAnalyzed: coverage.notAnalyzed,
+        grandTotal: coverage.total,
         weak: 0,
         medium: 0,
         strong: 0,
         duplicates: [],
         oldPasswords: [],
         commonPasswords: [],
-        recommendations: []
+        recommendations: [],
       };
 
       const passwordCounts = {};
-      const commonPatterns = ['password', '123456', 'qwerty', 'admin', 'letmein', 'welcome'];
+      const commonPatterns = [
+        "password",
+        "123456",
+        "qwerty",
+        "admin",
+        "letmein",
+        "welcome",
+      ];
 
-      passwordList.forEach(pwd => {
+      passwordList.forEach((pwd) => {
         const strength = evaluatePasswordStrength(pwd.password);
-        
+
         // Compter par force
-        if (strength.level === 'weak') analysis.weak++;
-        else if (strength.level === 'medium') analysis.medium++;
+        if (strength.level === "weak") analysis.weak++;
+        else if (strength.level === "medium") analysis.medium++;
         else analysis.strong++;
 
         // Détecter les doublons
@@ -107,7 +129,9 @@ const SecurityCheck = () => {
           }
 
           // Détecter les mots de passe courants
-          if (commonPatterns.some(pattern => lowerPassword.includes(pattern))) {
+          if (
+            commonPatterns.some((pattern) => lowerPassword.includes(pattern))
+          ) {
             analysis.commonPasswords.push(pwd);
           }
         }
@@ -117,11 +141,13 @@ const SecurityCheck = () => {
           const lastUpdate = new Date(pwd.updated_at || pwd.created_at);
           const ninetyDaysAgo = new Date();
           ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-          
+
           if (lastUpdate < ninetyDaysAgo) {
             analysis.oldPasswords.push({
               ...pwd,
-              daysOld: Math.floor((new Date() - lastUpdate) / (1000 * 60 * 60 * 24))
+              daysOld: Math.floor(
+                (new Date() - lastUpdate) / (1000 * 60 * 60 * 24),
+              ),
             });
           }
         }
@@ -129,90 +155,104 @@ const SecurityCheck = () => {
 
       // Identifier les doublons
       analysis.duplicates = Object.values(passwordCounts)
-        .filter(group => group.length > 1)
+        .filter((group) => group.length > 1)
         .flat();
 
       // Générer des recommandations
       if (analysis.weak > 0) {
         analysis.recommendations.push({
-          type: 'warning',
-          title: 'Weak passwords detected',
-          description: `${analysis.weak} password(s) are too weak. Strengthen them with special characters, numbers, and more length.`
+          type: "warning",
+          title: "Weak passwords detected",
+          description: `${analysis.weak} password(s) are too weak. Strengthen them with special characters, numbers, and more length.`,
         });
       }
 
       if (analysis.duplicates.length > 0) {
         analysis.recommendations.push({
-          type: 'error',
-          title: 'Duplicate passwords',
-          description: `${analysis.duplicates.length} password(s) are reused. Use a unique password for every site.`
+          type: "error",
+          title: "Duplicate passwords",
+          description: `${analysis.duplicates.length} password(s) are reused. Use a unique password for every site.`,
         });
       }
 
       if (analysis.oldPasswords.length > 0) {
         analysis.recommendations.push({
-          type: 'warning',
-          title: 'Old passwords',
-          description: `${analysis.oldPasswords.length} password(s) haven't changed in over 90 days. Consider rotating them regularly.`
+          type: "warning",
+          title: "Old passwords",
+          description: `${analysis.oldPasswords.length} password(s) haven't changed in over 90 days. Consider rotating them regularly.`,
         });
       }
 
       if (analysis.commonPasswords.length > 0) {
         analysis.recommendations.push({
-          type: 'error',
-          title: 'Common passwords detected',
-          description: `${analysis.commonPasswords.length} password(s) use common patterns. Avoid dictionary words and predictable sequences.`
+          type: "error",
+          title: "Common passwords detected",
+          description: `${analysis.commonPasswords.length} password(s) use common patterns. Avoid dictionary words and predictable sequences.`,
+        });
+      }
+
+      // Couverture : signaler EN PREMIER les entrées non analysées (sinon le score
+      // ment sur son périmètre).
+      if (coverage.notAnalyzed > 0) {
+        analysis.recommendations.unshift({
+          type: "error",
+          title: "Some entries could not be checked",
+          description: `${coverage.notAnalyzed} of ${coverage.total} entries couldn't be decrypted, so they're not included in this score. Reopen your vault and re-run the analysis.`,
         });
       }
 
       if (analysis.recommendations.length === 0) {
         analysis.recommendations.push({
-          type: 'success',
-          title: 'Excellent security!',
-          description: 'Your passwords follow every security best practice. Keep it up!'
+          type: "success",
+          title: "Excellent security!",
+          description:
+            "Your passwords follow every security best practice. Keep it up!",
         });
       }
 
       setSecurityReport(analysis);
     } catch (error) {
-      console.error('Erreur lors de l\'analyse:', error);
-      toast.error('Security analysis failed');
+      console.error("Erreur lors de l'analyse:", error);
+      toast.error("Security analysis failed");
     } finally {
       setAnalyzing(false);
     }
   };
 
   const togglePasswordVisibility = (passwordId) => {
-    setShowPasswords(prev => ({
+    setShowPasswords((prev) => ({
       ...prev,
-      [passwordId]: !prev[passwordId]
+      [passwordId]: !prev[passwordId],
     }));
   };
 
   const getSecurityScore = () => {
     if (!securityReport || securityReport.total === 0) return 0;
-    
+
     const strongRatio = securityReport.strong / securityReport.total;
     const weakPenalty = securityReport.weak * 10;
     const duplicatePenalty = securityReport.duplicates.length * 5;
     const oldPasswordPenalty = securityReport.oldPasswords.length * 3;
-    
+
     const baseScore = Math.round(strongRatio * 100);
-    const finalScore = Math.max(0, baseScore - weakPenalty - duplicatePenalty - oldPasswordPenalty);
-    
+    const finalScore = Math.max(
+      0,
+      baseScore - weakPenalty - duplicatePenalty - oldPasswordPenalty,
+    );
+
     return finalScore;
   };
 
   const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    return 'text-red-600';
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-yellow-600";
+    return "text-red-600";
   };
 
   const getScoreBackground = (score) => {
-    if (score >= 80) return 'bg-green-100';
-    if (score >= 60) return 'bg-yellow-100';
-    return 'bg-red-100';
+    if (score >= 80) return "bg-green-100";
+    if (score >= 60) return "bg-yellow-100";
+    return "bg-red-100";
   };
 
   if (loading || analyzing) {
@@ -221,7 +261,9 @@ const SecurityCheck = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">
-            {loading ? 'Loading your passwords...' : 'Running security analysis...'}
+            {loading
+              ? "Loading your passwords..."
+              : "Running security analysis..."}
           </p>
         </div>
       </div>
@@ -237,7 +279,7 @@ const SecurityCheck = () => {
         <div className="mb-8">
           <div className="flex items-center mb-4">
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate("/dashboard")}
               className="mr-4 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
             >
               <ArrowLeftIcon className="h-5 w-5" />
@@ -257,19 +299,44 @@ const SecurityCheck = () => {
 
           {/* Score de sécurité */}
           {securityReport && (
-            <div className={`${getScoreBackground(securityScore)} rounded-2xl p-6 mb-6`}>
+            <div
+              className={`${getScoreBackground(securityScore)} rounded-2xl p-6 mb-6`}
+            >
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">Security Score</h2>
-                  <p className="text-gray-600">Based on an analysis of {securityReport.total} passwords</p>
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Security Score
+                  </h2>
+                  <p className="text-gray-600">
+                    Based on {securityReport.total} of{" "}
+                    {securityReport.grandTotal ?? securityReport.total} entries
+                  </p>
+                  {securityReport.notAnalyzed > 0 && (
+                    <p className="mt-1 inline-flex items-center gap-1 text-sm text-amber-700">
+                      <ExclamationTriangleIcon
+                        className="h-4 w-4 flex-shrink-0"
+                        aria-hidden="true"
+                      />
+                      {securityReport.notAnalyzed} entr
+                      {securityReport.notAnalyzed > 1 ? "ies" : "y"} couldn’t be
+                      decrypted and{" "}
+                      {securityReport.notAnalyzed > 1 ? "aren’t" : "isn’t"}{" "}
+                      included.
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
-                  <div className={`text-4xl font-bold ${getScoreColor(securityScore)}`}>
+                  <div
+                    className={`text-4xl font-bold ${getScoreColor(securityScore)}`}
+                  >
                     {securityScore}/100
                   </div>
                   <p className="text-sm text-gray-600">
-                    {securityScore >= 80 ? 'Excellent' : 
-                     securityScore >= 60 ? 'Correct' : 'Needs work'}
+                    {securityScore >= 80
+                      ? "Excellent"
+                      : securityScore >= 60
+                        ? "Correct"
+                        : "Needs work"}
                   </p>
                 </div>
               </div>
@@ -288,16 +355,18 @@ const SecurityCheck = () => {
                 <div
                   key={index}
                   className={`p-4 rounded-lg border-l-4 ${
-                    rec.type === 'error' ? 'bg-red-50 border-red-400 dark:bg-red-900/20' :
-                    rec.type === 'warning' ? 'bg-yellow-50 border-yellow-400 dark:bg-yellow-900/20' :
-                    'bg-green-50 border-green-400 dark:bg-green-900/20'
+                    rec.type === "error"
+                      ? "bg-red-50 border-red-400 dark:bg-red-900/20"
+                      : rec.type === "warning"
+                        ? "bg-yellow-50 border-yellow-400 dark:bg-yellow-900/20"
+                        : "bg-green-50 border-green-400 dark:bg-green-900/20"
                   }`}
                 >
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      {rec.type === 'error' ? (
+                      {rec.type === "error" ? (
                         <XCircleIcon className="h-5 w-5 text-red-600" />
-                      ) : rec.type === 'warning' ? (
+                      ) : rec.type === "warning" ? (
                         <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600" />
                       ) : (
                         <CheckCircleIcon className="h-5 w-5 text-green-600" />
@@ -325,7 +394,9 @@ const SecurityCheck = () => {
               <div className="flex items-center">
                 <KeyIcon className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Total</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Total
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.total}
                   </p>
@@ -337,7 +408,9 @@ const SecurityCheck = () => {
               <div className="flex items-center">
                 <CheckCircleIcon className="h-8 w-8 text-green-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Strong</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Strong
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.strong}
                   </p>
@@ -349,7 +422,9 @@ const SecurityCheck = () => {
               <div className="flex items-center">
                 <ExclamationTriangleIcon className="h-8 w-8 text-yellow-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Medium</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Medium
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.medium}
                   </p>
@@ -361,7 +436,9 @@ const SecurityCheck = () => {
               <div className="flex items-center">
                 <XCircleIcon className="h-8 w-8 text-red-600" />
                 <div className="ml-4">
-                  <p className="text-sm text-gray-600 dark:text-gray-400">Weak</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Weak
+                  </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.weak}
                   </p>
@@ -382,8 +459,11 @@ const SecurityCheck = () => {
                   Weak passwords ({securityReport.weak})
                 </h3>
                 <div className="space-y-3">
-                  {getWeakPasswords(passwords, 5).map(pwd => (
-                    <div key={pwd.id} className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                  {getWeakPasswords(passwords, 5).map((pwd) => (
+                    <div
+                      key={pwd.id}
+                      className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg"
+                    >
                       <div className="flex-1">
                         <p className="font-medium text-gray-900 dark:text-white">
                           {pwd.site_name}
@@ -404,7 +484,7 @@ const SecurityCheck = () => {
                           )}
                         </button>
                         <span className="text-sm font-mono bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                          {showPasswords[pwd.id] ? pwd.password : '••••••••'}
+                          {showPasswords[pwd.id] ? pwd.password : "••••••••"}
                         </span>
                       </div>
                     </div>
@@ -421,14 +501,18 @@ const SecurityCheck = () => {
                   Old passwords ({securityReport.oldPasswords.length})
                 </h3>
                 <div className="space-y-3">
-                  {securityReport.oldPasswords.slice(0, 5).map(pwd => (
-                    <div key={pwd.id} className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                  {securityReport.oldPasswords.slice(0, 5).map((pwd) => (
+                    <div
+                      key={pwd.id}
+                      className="flex items-center justify-between p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg"
+                    >
                       <div>
                         <p className="font-medium text-gray-900 dark:text-white">
                           {pwd.site_name}
                         </p>
                         <p className="text-sm text-gray-600 dark:text-gray-400">
-                          Last modified: {formatRelativeDate(pwd.updated_at || pwd.created_at)}
+                          Last modified:{" "}
+                          {formatRelativeDate(pwd.updated_at || pwd.created_at)}
                         </p>
                       </div>
                       <span className="text-sm font-medium text-yellow-600">
