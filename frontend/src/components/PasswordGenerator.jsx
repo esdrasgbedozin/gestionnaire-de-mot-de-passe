@@ -1,16 +1,24 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback } from "react";
 import {
   XMarkIcon,
   ArrowPathIcon,
   DocumentDuplicateIcon,
   CheckIcon,
-  AdjustmentsHorizontalIcon
-} from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
-import { evaluateStrength } from '../utils/passwordStrength';
+  AdjustmentsHorizontalIcon,
+} from "@heroicons/react/24/outline";
+import { toast } from "react-hot-toast";
+import { evaluateStrength } from "../utils/passwordStrength";
+
+// Entier aléatoire CSPRNG dans [0, max[ — jamais Math.random() pour du matériel
+// de mot de passe (y compris la garantie "au moins un char par classe").
+const secureIndex = (max) => {
+  const a = new Uint32Array(1);
+  crypto.getRandomValues(a);
+  return a[0] % max;
+};
 
 const PasswordGenerator = ({ onClose, onUsePassword }) => {
-  const [generatedPassword, setGeneratedPassword] = useState('');
+  const [generatedPassword, setGeneratedPassword] = useState("");
   const [options, setOptions] = useState({
     length: 16,
     includeUppercase: true,
@@ -18,9 +26,13 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
     includeNumbers: true,
     includeSymbols: true,
     excludeSimilar: true,
-    excludeAmbiguous: false
+    excludeAmbiguous: false,
   });
-  const [passwordStrength, setPasswordStrength] = useState({ level: 0, text: 'None', color: 'gray' });
+  const [passwordStrength, setPasswordStrength] = useState({
+    level: 0,
+    text: "None",
+    color: "gray",
+  });
 
   // Générer le mot de passe initial au montage du composant
   React.useEffect(() => {
@@ -34,58 +46,70 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
   }, []);
 
   const generatePassword = useCallback(() => {
-    let charset = '';
-    
-    if (options.includeLowercase) charset += 'abcdefghijklmnopqrstuvwxyz';
-    if (options.includeUppercase) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    if (options.includeNumbers) charset += '0123456789';
-    if (options.includeSymbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
-    
+    let charset = "";
+
+    if (options.includeLowercase) charset += "abcdefghijklmnopqrstuvwxyz";
+    if (options.includeUppercase) charset += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if (options.includeNumbers) charset += "0123456789";
+    if (options.includeSymbols) charset += "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
     if (options.excludeSimilar) {
-      charset = charset.replace(/[il1Lo0O]/g, '');
-    }
-    
-    if (options.excludeAmbiguous) {
-      charset = charset.replace(/[{}[\]()\/\\'"~,;.<>]/g, '');
+      charset = charset.replace(/[il1Lo0O]/g, "");
     }
 
-    if (charset === '') {
-      toast.error('Please select at least one character type');
+    if (options.excludeAmbiguous) {
+      charset = charset.replace(/[{}[\]()\/\\'"~,;.<>]/g, "");
+    }
+
+    if (charset === "") {
+      toast.error("Please select at least one character type");
       return;
     }
 
     // Générer le mot de passe
     const array = new Uint8Array(options.length);
     crypto.getRandomValues(array);
-    
-    let result = '';
+
+    let result = "";
     for (let i = 0; i < options.length; i++) {
       result += charset[array[i] % charset.length];
     }
 
     // S'assurer qu'au moins un caractère de chaque type sélectionné est présent
     if (options.includeUppercase && !/[A-Z]/.test(result)) {
-      const upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      const randomIndex = Math.floor(Math.random() * result.length);
-      result = result.substring(0, randomIndex) + upperChars[Math.floor(Math.random() * upperChars.length)] + result.substring(randomIndex + 1);
+      const upperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      const randomIndex = secureIndex(result.length);
+      result =
+        result.substring(0, randomIndex) +
+        upperChars[secureIndex(upperChars.length)] +
+        result.substring(randomIndex + 1);
     }
-    
+
     if (options.includeLowercase && !/[a-z]/.test(result)) {
-      const lowerChars = 'abcdefghijklmnopqrstuvwxyz';
-      const randomIndex = Math.floor(Math.random() * result.length);
-      result = result.substring(0, randomIndex) + lowerChars[Math.floor(Math.random() * lowerChars.length)] + result.substring(randomIndex + 1);
+      const lowerChars = "abcdefghijklmnopqrstuvwxyz";
+      const randomIndex = secureIndex(result.length);
+      result =
+        result.substring(0, randomIndex) +
+        lowerChars[secureIndex(lowerChars.length)] +
+        result.substring(randomIndex + 1);
     }
-    
+
     if (options.includeNumbers && !/[0-9]/.test(result)) {
-      const numberChars = '0123456789';
-      const randomIndex = Math.floor(Math.random() * result.length);
-      result = result.substring(0, randomIndex) + numberChars[Math.floor(Math.random() * numberChars.length)] + result.substring(randomIndex + 1);
+      const numberChars = "0123456789";
+      const randomIndex = secureIndex(result.length);
+      result =
+        result.substring(0, randomIndex) +
+        numberChars[secureIndex(numberChars.length)] +
+        result.substring(randomIndex + 1);
     }
-    
+
     if (options.includeSymbols && !/[^A-Za-z0-9]/.test(result)) {
-      const symbolChars = '!@#$%^&*()_+-=[]{}|;:,.<>?';
-      const randomIndex = Math.floor(Math.random() * result.length);
-      result = result.substring(0, randomIndex) + symbolChars[Math.floor(Math.random() * symbolChars.length)] + result.substring(randomIndex + 1);
+      const symbolChars = "!@#$%^&*()_+-=[]{}|;:,.<>?";
+      const randomIndex = secureIndex(result.length);
+      result =
+        result.substring(0, randomIndex) +
+        symbolChars[secureIndex(symbolChars.length)] +
+        result.substring(randomIndex + 1);
     }
 
     setGeneratedPassword(result);
@@ -102,25 +126,53 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(generatedPassword);
-      toast.success('Password copied to clipboard');
+      toast.success("Password copied to clipboard");
     } catch (error) {
-      console.error('Erreur lors de la copie:', error);
-      toast.error('Failed to copy password to clipboard');
+      console.error("Erreur lors de la copie:", error);
+      toast.error("Failed to copy password to clipboard");
     }
   };
 
   const handleOptionChange = (option, value) => {
-    setOptions(prev => ({
+    setOptions((prev) => ({
       ...prev,
-      [option]: value
+      [option]: value,
     }));
   };
 
   const presets = [
-    { name: 'Basic', length: 12, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: false },
-    { name: 'Secure', length: 16, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: true },
-    { name: 'Ultra secure', length: 24, includeUppercase: true, includeLowercase: true, includeNumbers: true, includeSymbols: true },
-    { name: 'PIN', length: 6, includeUppercase: false, includeLowercase: false, includeNumbers: true, includeSymbols: false }
+    {
+      name: "Basic",
+      length: 12,
+      includeUppercase: true,
+      includeLowercase: true,
+      includeNumbers: true,
+      includeSymbols: false,
+    },
+    {
+      name: "Secure",
+      length: 16,
+      includeUppercase: true,
+      includeLowercase: true,
+      includeNumbers: true,
+      includeSymbols: true,
+    },
+    {
+      name: "Ultra secure",
+      length: 24,
+      includeUppercase: true,
+      includeLowercase: true,
+      includeNumbers: true,
+      includeSymbols: true,
+    },
+    {
+      name: "PIN",
+      length: 6,
+      includeUppercase: false,
+      includeLowercase: false,
+      includeNumbers: true,
+      includeSymbols: false,
+    },
   ];
 
   const applyPreset = (preset) => {
@@ -128,7 +180,7 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
       ...options,
       ...preset,
       excludeSimilar: options.excludeSimilar,
-      excludeAmbiguous: options.excludeAmbiguous
+      excludeAmbiguous: options.excludeAmbiguous,
     });
   };
 
@@ -168,14 +220,16 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
                 <button
                   onClick={copyToClipboard}
                   className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-                  aria-label="Copy generated password" title="Copy"
+                  aria-label="Copy generated password"
+                  title="Copy"
                 >
                   <DocumentDuplicateIcon className="h-4 w-4" />
                 </button>
                 <button
                   onClick={generatePassword}
                   className="p-2 text-indigo-400 hover:text-indigo-600 rounded-md hover:bg-indigo-50 dark:hover:bg-indigo-900"
-                  aria-label="Generate a new password" title="Generate new"
+                  aria-label="Generate a new password"
+                  title="Generate new"
                 >
                   <ArrowPathIcon className="h-4 w-4" />
                 </button>
@@ -185,23 +239,34 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
             {/* Indicateur de force */}
             <div className="mt-3">
               <div className="flex items-center justify-between text-sm mb-2">
-                <span className="text-gray-600 dark:text-gray-400">Password strength:</span>
-                <span className={`font-medium ${
-                  passwordStrength.color === 'green' ? 'text-green-600' :
-                  passwordStrength.color === 'yellow' ? 'text-yellow-700 dark:text-yellow-500' :
-                  passwordStrength.color === 'red' ? 'text-red-600' :
-                  'text-gray-600'
-                }`}>
-                  {passwordStrength.text} ({Math.round(passwordStrength.percentage || 0)}%)
+                <span className="text-gray-600 dark:text-gray-400">
+                  Password strength:
+                </span>
+                <span
+                  className={`font-medium ${
+                    passwordStrength.color === "green"
+                      ? "text-green-600"
+                      : passwordStrength.color === "yellow"
+                        ? "text-yellow-700 dark:text-yellow-500"
+                        : passwordStrength.color === "red"
+                          ? "text-red-600"
+                          : "text-gray-600"
+                  }`}
+                >
+                  {passwordStrength.text} (
+                  {Math.round(passwordStrength.percentage || 0)}%)
                 </span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
-                <div 
+                <div
                   className={`h-3 rounded-full transition-all duration-500 ${
-                    passwordStrength.color === 'green' ? 'bg-green-500' :
-                    passwordStrength.color === 'yellow' ? 'bg-yellow-500' :
-                    passwordStrength.color === 'red' ? 'bg-red-500' :
-                    'bg-gray-500'
+                    passwordStrength.color === "green"
+                      ? "bg-green-500"
+                      : passwordStrength.color === "yellow"
+                        ? "bg-yellow-500"
+                        : passwordStrength.color === "red"
+                          ? "bg-red-500"
+                          : "bg-gray-500"
                   }`}
                   style={{ width: `${passwordStrength.percentage || 0}%` }}
                 ></div>
@@ -237,7 +302,9 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
               min="6"
               max="64"
               value={options.length}
-              onChange={(e) => handleOptionChange('length', parseInt(e.target.value))}
+              onChange={(e) =>
+                handleOptionChange("length", parseInt(e.target.value))
+              }
               className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
             />
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -255,22 +322,46 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
             </label>
             <div className="space-y-3">
               {[
-                { key: 'includeUppercase', label: 'Uppercase (A-Z)', example: 'ABCDEFG...' },
-                { key: 'includeLowercase', label: 'Lowercase (a-z)', example: 'abcdefg...' },
-                { key: 'includeNumbers', label: 'Numbers (0-9)', example: '0123456...' },
-                { key: 'includeSymbols', label: 'Symbols (!@#...)', example: '!@#$%^&...' }
+                {
+                  key: "includeUppercase",
+                  label: "Uppercase (A-Z)",
+                  example: "ABCDEFG...",
+                },
+                {
+                  key: "includeLowercase",
+                  label: "Lowercase (a-z)",
+                  example: "abcdefg...",
+                },
+                {
+                  key: "includeNumbers",
+                  label: "Numbers (0-9)",
+                  example: "0123456...",
+                },
+                {
+                  key: "includeSymbols",
+                  label: "Symbols (!@#...)",
+                  example: "!@#$%^&...",
+                },
               ].map((option) => (
-                <div key={option.key} className="flex items-center justify-between">
+                <div
+                  key={option.key}
+                  className="flex items-center justify-between"
+                >
                   <div className="flex items-center space-x-3">
                     <input
                       type="checkbox"
                       id={option.key}
                       checked={options[option.key]}
-                      onChange={(e) => handleOptionChange(option.key, e.target.checked)}
+                      onChange={(e) =>
+                        handleOptionChange(option.key, e.target.checked)
+                      }
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded"
                     />
                     <div>
-                      <label htmlFor={option.key} className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      <label
+                        htmlFor={option.key}
+                        className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                      >
                         {option.label}
                       </label>
                       <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">
@@ -291,7 +382,10 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <label htmlFor="excludeSimilar" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label
+                    htmlFor="excludeSimilar"
+                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
                     Exclude similar characters
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -302,14 +396,19 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
                   type="checkbox"
                   id="excludeSimilar"
                   checked={options.excludeSimilar}
-                  onChange={(e) => handleOptionChange('excludeSimilar', e.target.checked)}
+                  onChange={(e) =>
+                    handleOptionChange("excludeSimilar", e.target.checked)
+                  }
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded"
                 />
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <div>
-                  <label htmlFor="excludeAmbiguous" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label
+                    htmlFor="excludeAmbiguous"
+                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >
                     Exclude ambiguous characters
                   </label>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -320,7 +419,9 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
                   type="checkbox"
                   id="excludeAmbiguous"
                   checked={options.excludeAmbiguous}
-                  onChange={(e) => handleOptionChange('excludeAmbiguous', e.target.checked)}
+                  onChange={(e) =>
+                    handleOptionChange("excludeAmbiguous", e.target.checked)
+                  }
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 dark:border-gray-600 rounded"
                 />
               </div>
