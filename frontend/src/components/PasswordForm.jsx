@@ -1,50 +1,54 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   XMarkIcon,
   EyeIcon,
   EyeSlashIcon,
   ArrowPathIcon,
   CheckIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
-import { toast } from 'react-hot-toast';
-import passwordService from '../services/passwordService';
-import { evaluateStrength } from '../utils/passwordStrength';
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
+import { toast } from "react-hot-toast";
+import passwordService from "../services/passwordService";
+import { evaluateStrength } from "../utils/passwordStrength";
+import Button from "./ui/Button";
 
 const PasswordForm = ({ password, onSave, onCancel }) => {
   const [formData, setFormData] = useState({
-    site_name: '',
-    username: '',
-    password: '',
-    site_url: '',
-    category: 'personal',
-    notes: ''
+    site_name: "",
+    username: "",
+    password: "",
+    site_url: "",
+    category: "personal",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
-  const [passwordStrength, setPasswordStrength] = useState({ text: 'None', color: 'gray' });
+  const [passwordStrength, setPasswordStrength] = useState({
+    text: "None",
+    color: "gray",
+  });
   const [errors, setErrors] = useState({});
 
   const categories = [
-    { value: 'personal', label: 'Personal', icon: '👤' },
-    { value: 'work', label: 'Work', icon: '💼' },
-    { value: 'social', label: 'Social Media', icon: '📱' },
-    { value: 'banking', label: 'Banking', icon: '🏦' },
-    { value: 'shopping', label: 'Shopping', icon: '🛒' },
-    { value: 'other', label: 'Other', icon: '🔐' }
+    { value: "personal", label: "Personal", icon: "👤" },
+    { value: "work", label: "Work", icon: "💼" },
+    { value: "social", label: "Social Media", icon: "📱" },
+    { value: "banking", label: "Banking", icon: "🏦" },
+    { value: "shopping", label: "Shopping", icon: "🛒" },
+    { value: "other", label: "Other", icon: "🔐" },
   ];
 
   // Initialiser le formulaire avec les données du mot de passe à éditer
   useEffect(() => {
     if (password) {
       setFormData({
-        site_name: password.site_name || '',
-        username: password.username || '',
-        password: password.password || '',
-        site_url: password.site_url || '',
-        category: password.category || 'personal',
-        notes: password.notes || ''
+        site_name: password.site_name || "",
+        username: password.username || "",
+        password: password.password || "",
+        site_url: password.site_url || "",
+        category: password.category || "personal",
+        notes: password.notes || "",
       });
     }
   }, [password]);
@@ -66,21 +70,21 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
       includeLowercase = true,
       includeNumbers = true,
       includeSymbols = true,
-      excludeSimilar = true
+      excludeSimilar = true,
     } = options;
 
-    let charset = '';
-    if (includeLowercase) charset += 'abcdefghijklmnopqrstuvwxyz';
-    if (includeUppercase) charset += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    if (includeNumbers) charset += '0123456789';
-    if (includeSymbols) charset += '!@#$%^&*()_+-=[]{}|;:,.<>?';
-    
+    let charset = "";
+    if (includeLowercase) charset += "abcdefghijklmnopqrstuvwxyz";
+    if (includeUppercase) charset += "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    if (includeNumbers) charset += "0123456789";
+    if (includeSymbols) charset += "!@#$%^&*()_+-=[]{}|;:,.<>?";
+
     if (excludeSimilar) {
-      charset = charset.replace(/[il1Lo0O]/g, '');
+      charset = charset.replace(/[il1Lo0O]/g, "");
     }
 
     // CSPRNG : jamais Math.random() pour un mot de passe (défaut sécurité corrigé).
-    let result = '';
+    let result = "";
     const randomValues = new Uint32Array(length);
     crypto.getRandomValues(randomValues);
     for (let i = 0; i < length; i++) {
@@ -92,16 +96,16 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
+
     // Supprimer l'erreur pour ce champ
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
       }));
     }
   };
@@ -110,21 +114,21 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
     const newErrors = {};
 
     if (!formData.site_name.trim()) {
-      newErrors.site_name = 'Site name is required';
+      newErrors.site_name = "Site name is required";
     }
 
     if (!formData.username.trim()) {
-      newErrors.username = 'Username is required';
+      newErrors.username = "Username is required";
     }
 
     if (!formData.password.trim()) {
-      newErrors.password = 'Password is required';
+      newErrors.password = "Password is required";
     } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long';
+      newErrors.password = "Password must be at least 6 characters long";
     }
 
     if (formData.site_url && !isValidUrl(formData.site_url)) {
-      newErrors.site_url = 'Invalid URL';
+      newErrors.site_url = "Invalid URL";
     }
 
     setErrors(newErrors);
@@ -142,9 +146,9 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
-      toast.error('Please correct the form errors');
+      toast.error("Please correct the form errors");
       return;
     }
 
@@ -161,14 +165,18 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
       }
 
       if (result.success) {
-        toast.success(password ? 'Password updated successfully' : 'Password created successfully');
+        toast.success(
+          password
+            ? "Password updated successfully"
+            : "Password created successfully",
+        );
         onSave();
       } else {
-        toast.error(result.error || 'Error saving password');
+        toast.error(result.error || "Error saving password");
       }
     } catch (error) {
-      console.error('Erreur:', error);
-      toast.error('Error saving password');
+      console.error("Erreur:", error);
+      toast.error("Error saving password");
     } finally {
       setLoading(false);
     }
@@ -176,11 +184,11 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
   const handleGeneratePassword = () => {
     const newPassword = generatePassword();
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      password: newPassword
+      password: newPassword,
     }));
-    toast.success('Password generated!');
+    toast.success("Password generated!");
   };
 
   return (
@@ -189,7 +197,7 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
         {/* En-tête */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {password ? 'Edit Password' : 'Add Password'}
+            {password ? "Edit Password" : "Add Password"}
           </h2>
           <button
             onClick={onCancel}
@@ -203,7 +211,10 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* Nom du site */}
           <div>
-            <label htmlFor="site_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="site_name"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
               Site name *
             </label>
             <input
@@ -213,7 +224,9 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
               value={formData.site_name}
               onChange={handleInputChange}
               className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                errors.site_name ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                errors.site_name
+                  ? "border-red-500"
+                  : "border-gray-300 dark:border-gray-600"
               }`}
               placeholder="Ex: Gmail, Facebook, GitHub..."
             />
@@ -227,7 +240,10 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
           {/* Nom d'utilisateur */}
           <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="username"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
               Username / Email *
             </label>
             <input
@@ -237,7 +253,9 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
               value={formData.username}
               onChange={handleInputChange}
               className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                errors.username ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                errors.username
+                  ? "border-red-500"
+                  : "border-gray-300 dark:border-gray-600"
               }`}
               placeholder="votre@email.com ou nom_utilisateur"
             />
@@ -251,18 +269,23 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
           {/* Password */}
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
               Password *
             </label>
             <div className="relative">
               <input
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 id="password"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}
                 className={`w-full px-3 py-2 pr-20 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                  errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                  errors.password
+                    ? "border-red-500"
+                    : "border-gray-300 dark:border-gray-600"
                 }`}
                 placeholder="Enter a secure password"
               />
@@ -271,47 +294,60 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  title={showPassword ? 'Masquer' : 'Afficher'}
+                  title={showPassword ? "Masquer" : "Afficher"}
                 >
-                  {showPassword ? <EyeSlashIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
+                  {showPassword ? (
+                    <EyeSlashIcon className="h-4 w-4" />
+                  ) : (
+                    <EyeIcon className="h-4 w-4" />
+                  )}
                 </button>
                 <button
                   type="button"
                   onClick={handleGeneratePassword}
                   className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  aria-label="Generate a password" title="Generate a password"
+                  aria-label="Generate a password"
+                  title="Generate a password"
                 >
                   <ArrowPathIcon className="h-4 w-4" />
                 </button>
               </div>
             </div>
-            
+
             {/* Indicateur de force */}
             {formData.password && (
               <div className="mt-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Password strength:</span>
-                  <span className={`font-medium ${
-                    passwordStrength.color === 'green' ? 'text-green-600' :
-                    passwordStrength.color === 'yellow' ? 'text-yellow-700 dark:text-yellow-500' :
-                    'text-red-600'
-                  }`}>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Password strength:
+                  </span>
+                  <span
+                    className={`font-medium ${
+                      passwordStrength.color === "green"
+                        ? "text-green-600"
+                        : passwordStrength.color === "yellow"
+                          ? "text-yellow-700 dark:text-yellow-500"
+                          : "text-red-600"
+                    }`}
+                  >
                     {passwordStrength.text}
                   </span>
                 </div>
                 <div className="mt-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                  <div 
+                  <div
                     className={`h-2 rounded-full transition-all duration-300 ${
-                      passwordStrength.color === 'green' ? 'bg-green-500' :
-                      passwordStrength.color === 'yellow' ? 'bg-yellow-500' :
-                      'bg-red-500'
+                      passwordStrength.color === "green"
+                        ? "bg-green-500"
+                        : passwordStrength.color === "yellow"
+                          ? "bg-yellow-500"
+                          : "bg-red-500"
                     }`}
                     style={{ width: `${(passwordStrength.level / 3) * 100}%` }}
                   ></div>
                 </div>
               </div>
             )}
-            
+
             {errors.password && (
               <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center">
                 <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
@@ -322,7 +358,10 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
           {/* URL du site */}
           <div>
-            <label htmlFor="site_url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="site_url"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
               Website URL (optional)
             </label>
             <input
@@ -332,7 +371,9 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
               value={formData.site_url}
               onChange={handleInputChange}
               className={`w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
-                errors.site_url ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                errors.site_url
+                  ? "border-red-500"
+                  : "border-gray-300 dark:border-gray-600"
               }`}
               placeholder="https://example.com"
             />
@@ -346,7 +387,10 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
           {/* Category */}
           <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="category"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
               Category
             </label>
             <select
@@ -366,7 +410,10 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
           {/* Notes */}
           <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="notes"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
               Notes (optional)
             </label>
             <textarea
@@ -382,30 +429,13 @@ const PasswordForm = ({ password, onSave, onCancel }) => {
 
           {/* Boutons d'action */}
           <div className="flex justify-end space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-500"
-            >
+            <Button type="button" variant="secondary" onClick={onCancel}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
-            >
-              {loading ? (
-                <>
-                  <ArrowPathIcon className="h-4 w-4 mr-2 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <CheckIcon className="h-4 w-4 mr-2" />
-                  {password ? 'Update' : 'Add'}
-                </>
-              )}
-            </button>
+            </Button>
+            <Button type="submit" loading={loading}>
+              {!loading && <CheckIcon className="h-4 w-4" />}
+              {loading ? "Saving..." : password ? "Update" : "Add"}
+            </Button>
           </div>
         </form>
       </div>

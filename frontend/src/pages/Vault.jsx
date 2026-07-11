@@ -18,6 +18,8 @@ import {
 import { toast } from "react-hot-toast";
 import passwordService from "../services/passwordService";
 import PasswordCard from "../components/PasswordCard";
+import Button from "../components/ui/Button";
+import Card from "../components/ui/Card";
 import PasswordForm from "../components/PasswordForm";
 import PasswordGenerator from "../components/PasswordGenerator";
 
@@ -244,13 +246,10 @@ const Vault = () => {
                   <ShieldCheckIcon className="h-4 w-4 mr-2" />
                   Generator
                 </button>
-                <button
-                  onClick={handleAddPassword}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <PlusIcon className="h-4 w-4 mr-2" />
+                <Button onClick={handleAddPassword}>
+                  <PlusIcon className="h-4 w-4" />
                   Add Password
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -355,16 +354,13 @@ const Vault = () => {
                 <p className="text-gray-500 dark:text-gray-400 mb-6">
                   {loadError}
                 </p>
-                <button
-                  onClick={fetchPasswords}
-                  className="inline-flex items-center px-4 py-2 rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
-                >
-                  <ArrowPathIcon className="h-4 w-4 mr-2" />
+                <Button onClick={fetchPasswords}>
+                  <ArrowPathIcon className="h-4 w-4" />
                   Try again
-                </button>
+                </Button>
               </div>
             ) : filteredPasswords.length === 0 ? (
-              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
+              <Card className="p-8 text-center">
                 <KeyIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                   {passwords.length === 0
@@ -377,15 +373,12 @@ const Vault = () => {
                     : "Try adjusting your search criteria"}
                 </p>
                 {passwords.length === 0 && (
-                  <button
-                    onClick={handleAddPassword}
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700"
-                  >
-                    <PlusIcon className="h-4 w-4 mr-2" />
+                  <Button onClick={handleAddPassword}>
+                    <PlusIcon className="h-4 w-4" />
                     Add Password
-                  </button>
+                  </Button>
                 )}
-              </div>
+              </Card>
             ) : (
               <div
                 className={

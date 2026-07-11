@@ -8,6 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 import { evaluateStrength } from "../utils/passwordStrength";
+import Button from "./ui/Button";
 
 // Entier aléatoire CSPRNG dans [0, max[ — jamais Math.random() pour du matériel
 // de mot de passe (y compris la garantie "au moins un char par classe").
@@ -71,13 +72,20 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
     // (Fisher-Yates). Tout via secureIndex → pas de biais Uint8, et la garantie
     // de classe ne peut plus être écrasée par un insert ultérieur.
     const requiredPools = [];
-    if (options.includeLowercase) requiredPools.push("abcdefghijklmnopqrstuvwxyz");
-    if (options.includeUppercase) requiredPools.push("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    if (options.includeLowercase)
+      requiredPools.push("abcdefghijklmnopqrstuvwxyz");
+    if (options.includeUppercase)
+      requiredPools.push("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
     if (options.includeNumbers) requiredPools.push("0123456789");
-    if (options.includeSymbols) requiredPools.push("!@#$%^&*()_+-=[]{}|;:,.<>?");
+    if (options.includeSymbols)
+      requiredPools.push("!@#$%^&*()_+-=[]{}|;:,.<>?");
     // Appliquer les mêmes exclusions que `charset` à chaque pool.
     const pools = requiredPools
-      .map((p) => Array.from(p).filter((c) => charset.includes(c)).join(""))
+      .map((p) =>
+        Array.from(p)
+          .filter((c) => charset.includes(c))
+          .join(""),
+      )
       .filter((p) => p.length > 0);
 
     const chars = [];
@@ -413,20 +421,14 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
 
           {/* Boutons d'action */}
           <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:ring-2 focus:ring-gray-500"
-            >
+            <Button variant="secondary" onClick={onClose}>
               Close
-            </button>
+            </Button>
             {onUsePassword && (
-              <button
-                onClick={() => onUsePassword(generatedPassword)}
-                className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 flex items-center"
-              >
-                <CheckIcon className="h-4 w-4 mr-2" />
+              <Button onClick={() => onUsePassword(generatedPassword)}>
+                <CheckIcon className="h-4 w-4" />
                 Use this password
-              </button>
+              </Button>
             )}
           </div>
         </div>
