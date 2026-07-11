@@ -1,5 +1,5 @@
-import React from 'react';
-import { useTheme } from '../contexts/ThemeContext';
+import React from "react";
+import { useTheme } from "../contexts/ThemeContext";
 
 const ThemeToggle = () => {
   const { toggleTheme, isDark } = useTheme();
@@ -7,20 +7,20 @@ const ThemeToggle = () => {
   return (
     <button
       onClick={toggleTheme}
+      role="switch"
+      aria-checked={isDark}
       className="relative inline-flex items-center justify-center w-12 h-6 bg-gray-200 dark:bg-gray-700 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-      aria-label={`Changer vers le thème ${isDark ? 'clair' : 'sombre'}`}
-      title={`Changer vers le thème ${isDark ? 'clair' : 'sombre'}`}
+      aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
+      title={`Switch to ${isDark ? "light" : "dark"} theme`}
     >
       {/* Track du toggle */}
-      <div className="sr-only">
-        {isDark ? 'Mode sombre activé' : 'Mode clair activé'}
-      </div>
-      
+      <div className="sr-only">{isDark ? "Dark mode on" : "Light mode on"}</div>
+
       {/* Thumb du toggle avec icônes */}
       <div
         className={`
           absolute left-1 top-1 w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 flex items-center justify-center
-          ${isDark ? 'transform translate-x-6 bg-gray-800' : ''}
+          ${isDark ? "transform translate-x-6 bg-gray-800" : ""}
         `}
       >
         {isDark ? (

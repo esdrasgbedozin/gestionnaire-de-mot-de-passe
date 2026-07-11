@@ -15,6 +15,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 import passwordService from "../services/passwordService";
+import Button from "../components/ui/Button";
 import {
   evaluatePasswordStrength,
   getWeakPasswords,
@@ -390,7 +391,7 @@ const SecurityCheck = () => {
               {securityReport.recommendations.map((rec, index) => (
                 <div
                   key={index}
-                  className={`p-4 rounded-lg border-l-4 ${
+                  className={`p-4 rounded-lg border ${
                     rec.type === "error"
                       ? "bg-red-50 border-red-400 dark:bg-red-900/20"
                       : rec.type === "warning"
@@ -564,13 +565,10 @@ const SecurityCheck = () => {
 
         {/* Bouton d'action */}
         <div className="mt-8 flex justify-center">
-          <button
-            onClick={loadPasswordsAndAnalyze}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
-          >
-            <ShieldCheckIcon className="h-5 w-5 mr-2" />
+          <Button size="lg" onClick={loadPasswordsAndAnalyze}>
+            <ShieldCheckIcon className="h-5 w-5" />
             Re-run analysis
-          </button>
+          </Button>
         </div>
       </div>
     </div>

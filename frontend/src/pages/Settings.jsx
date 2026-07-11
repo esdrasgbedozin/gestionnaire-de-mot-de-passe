@@ -250,17 +250,17 @@ const Settings = () => {
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                     Profile Information
                   </h2>
-                  <button
+                  <Button
+                    size="sm"
                     onClick={() => setEditingProfile(!editingProfile)}
-                    className="flex items-center px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
                   >
                     {editingProfile ? (
-                      <XMarkIcon className="h-4 w-4 mr-1" />
+                      <XMarkIcon className="h-4 w-4" />
                     ) : (
-                      <PencilIcon className="h-4 w-4 mr-1" />
+                      <PencilIcon className="h-4 w-4" />
                     )}
                     {editingProfile ? "Cancel" : "Edit"}
-                  </button>
+                  </Button>
                 </div>
 
                 {editingProfile ? (
@@ -403,25 +403,16 @@ const Settings = () => {
                     </div>
 
                     <div className="flex justify-end space-x-3">
-                      <button
-                        type="button"
+                      <Button
+                        variant="secondary"
                         onClick={() => setEditingProfile(false)}
-                        className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                       >
                         Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={loading}
-                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center"
-                      >
-                        {loading ? (
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                        ) : (
-                          <CheckIcon className="h-4 w-4 mr-2" />
-                        )}
+                      </Button>
+                      <Button type="submit" loading={loading}>
+                        {!loading && <CheckIcon className="h-4 w-4" />}
                         Save
-                      </button>
+                      </Button>
                     </div>
                   </form>
                 ) : (
@@ -511,13 +502,10 @@ const Settings = () => {
                       Analyze the security of all your passwords and get
                       personalized recommendations.
                     </p>
-                    <button
-                      onClick={() => navigate("/security-check")}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center"
-                    >
-                      <ShieldCheckIcon className="h-4 w-4 mr-2" />
+                    <Button onClick={() => navigate("/security-check")}>
+                      <ShieldCheckIcon className="h-4 w-4" />
                       Launch Security Check
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
