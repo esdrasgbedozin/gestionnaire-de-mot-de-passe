@@ -21,6 +21,13 @@ import {
   getWeakPasswords,
   formatRelativeDate,
 } from "../utils/passwordStats";
+import { mapWithConcurrency } from "../utils/concurrency";
+
+// Concurrence de déchiffrement (critique P2). Bornée pour respecter le
+// rate-limit C7 des GET déchiffrants (prod : 20/60s) : paralléliser n'augmente
+// pas le nombre de requêtes, seulement leur cadence — plafond de couverture
+// inchangé, cas courant bien plus rapide, progrès lisible.
+const DECRYPT_CONCURRENCY = 5;
 
 const SecurityCheck = () => {
   const { user } = useAuth();
@@ -30,6 +37,7 @@ const SecurityCheck = () => {
   const [analyzing, setAnalyzing] = useState(false);
   const [securityReport, setSecurityReport] = useState(null);
   const [showPasswords, setShowPasswords] = useState({});
+  const [progress, setProgress] = useState({ done: 0, total: 0 });
 
   useEffect(() => {
     loadPasswordsAndAnalyze();
@@ -47,23 +55,28 @@ const SecurityCheck = () => {
         // Déchiffrer chaque entrée pour l'analyse. On COMPTE les échecs au lieu de
         // les avaler en silence : un score calculé sur un sous-ensemble sans le dire
         // serait un mensonge sur sa couverture (l'écran dont le job est la confiance).
-        const decryptedPasswords = [];
-        let notAnalyzed = 0;
-        for (const pwd of passwordList) {
-          try {
-            const decryptedResult = await passwordService.getPassword(pwd.id);
-            if (decryptedResult.success) {
-              decryptedPasswords.push({
-                ...pwd,
-                password: decryptedResult.data.password,
-              });
-            } else {
-              notAnalyzed++;
+        setProgress({ done: 0, total: passwordList.length });
+        const settled = await mapWithConcurrency(
+          passwordList,
+          DECRYPT_CONCURRENCY,
+          async (pwd) => {
+            try {
+              const decryptedResult = await passwordService.getPassword(pwd.id);
+              if (decryptedResult.success) {
+                return { ...pwd, password: decryptedResult.data.password };
+              }
+              return null; // échec logique (429 rate-limit, décryptage KO…)
+            } catch (error) {
+              return null;
             }
-          } catch (error) {
-            notAnalyzed++;
-          }
-        }
+          },
+          (done) => setProgress({ done, total: passwordList.length }),
+        );
+
+        // Couverture honnête inchangée : succès -> analysé ; null -> non analysé.
+        // filter(Boolean) préserve l'ordre (utile pour la détection de doublons).
+        const decryptedPasswords = settled.filter(Boolean);
+        const notAnalyzed = settled.length - decryptedPasswords.length;
 
         await performSecurityAnalysis(decryptedPasswords, {
           total: passwordList.length,
@@ -263,7 +276,9 @@ const SecurityCheck = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">
             {loading
-              ? "Loading your passwords..."
+              ? progress.total > 0
+                ? `Decrypting your vault… ${progress.done}/${progress.total}`
+                : "Loading your passwords..."
               : "Running security analysis..."}
           </p>
         </div>
