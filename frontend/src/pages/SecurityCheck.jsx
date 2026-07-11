@@ -297,8 +297,8 @@ const SecurityCheck = () => {
             </div>
           </div>
 
-          {/* Score de sécurité */}
-          {securityReport && (
+          {/* Score de sécurité (uniquement s'il y a des entrées analysées) */}
+          {securityReport && securityReport.total > 0 && (
             <div
               className={`${getScoreBackground(securityScore)} rounded-2xl p-6 mb-6`}
             >
@@ -335,11 +335,47 @@ const SecurityCheck = () => {
                     {securityScore >= 80
                       ? "Excellent"
                       : securityScore >= 60
-                        ? "Correct"
+                        ? "Good"
                         : "Needs work"}
                   </p>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Rien d'analysable : ne JAMAIS afficher un 0/100 rouge trompeur. On
+              distingue "coffre vide" de "tout a échoué au déchiffrement". */}
+          {securityReport && securityReport.total === 0 && (
+            <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl p-6 mb-6 text-center">
+              {securityReport.grandTotal > 0 ? (
+                <>
+                  <ExclamationTriangleIcon
+                    className="h-10 w-10 text-amber-500 mx-auto mb-3"
+                    aria-hidden="true"
+                  />
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    We couldn’t analyze your vault
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    None of your {securityReport.grandTotal} entries could be
+                    decrypted (your session may have changed). Reopen your vault
+                    and re-run the analysis.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <KeyIcon
+                    className="h-10 w-10 text-gray-400 mx-auto mb-3"
+                    aria-hidden="true"
+                  />
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                    No passwords to analyze yet
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">
+                    Add some passwords, then run a security check.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -392,10 +428,10 @@ const SecurityCheck = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6">
               <div className="flex items-center">
-                <KeyIcon className="h-8 w-8 text-blue-600" />
+                <KeyIcon className="h-8 w-8 text-indigo-600" />
                 <div className="ml-4">
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Total
+                    Analyzed
                   </p>
                   <p className="text-2xl font-bold text-gray-900 dark:text-white">
                     {securityReport.total}

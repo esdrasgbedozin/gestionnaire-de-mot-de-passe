@@ -26,7 +26,9 @@ const EMPTY = { score: -1, label: 'None', color: 'gray', percent: 0, feedback: [
  */
 export function evaluateStrength(password) {
   if (!password) return { ...EMPTY };
-  const { score, feedback } = zxcvbn(password); // score ∈ [0,4]
+  // zxcvbn est super-linéaire ; on borne l'entrée pour éviter un gel du thread UI
+  // sur un collage très long (un mot de passe > 128 car. est déjà au maximum).
+  const { score, feedback } = zxcvbn(password.slice(0, 128)); // score ∈ [0,4]
   const meta = LEVELS[score] || LEVELS[0];
   const suggestions = [feedback && feedback.warning, ...((feedback && feedback.suggestions) || [])].filter(
     Boolean,

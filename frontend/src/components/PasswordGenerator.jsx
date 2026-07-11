@@ -66,51 +66,34 @@ const PasswordGenerator = ({ onClose, onUsePassword }) => {
       return;
     }
 
-    // Générer le mot de passe
-    const array = new Uint8Array(options.length);
-    crypto.getRandomValues(array);
+    // Génération robuste : 1 caractère requis par classe sélectionnée (garantit
+    // la couverture), on complète depuis l'ensemble complet, puis on mélange
+    // (Fisher-Yates). Tout via secureIndex → pas de biais Uint8, et la garantie
+    // de classe ne peut plus être écrasée par un insert ultérieur.
+    const requiredPools = [];
+    if (options.includeLowercase) requiredPools.push("abcdefghijklmnopqrstuvwxyz");
+    if (options.includeUppercase) requiredPools.push("ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+    if (options.includeNumbers) requiredPools.push("0123456789");
+    if (options.includeSymbols) requiredPools.push("!@#$%^&*()_+-=[]{}|;:,.<>?");
+    // Appliquer les mêmes exclusions que `charset` à chaque pool.
+    const pools = requiredPools
+      .map((p) => Array.from(p).filter((c) => charset.includes(c)).join(""))
+      .filter((p) => p.length > 0);
 
-    let result = "";
-    for (let i = 0; i < options.length; i++) {
-      result += charset[array[i] % charset.length];
+    const chars = [];
+    for (const pool of pools) {
+      if (chars.length >= options.length) break; // longueur < nb de classes
+      chars.push(pool[secureIndex(pool.length)]);
     }
-
-    // S'assurer qu'au moins un caractère de chaque type sélectionné est présent
-    if (options.includeUppercase && !/[A-Z]/.test(result)) {
-      const upperChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-      const randomIndex = secureIndex(result.length);
-      result =
-        result.substring(0, randomIndex) +
-        upperChars[secureIndex(upperChars.length)] +
-        result.substring(randomIndex + 1);
+    while (chars.length < options.length) {
+      chars.push(charset[secureIndex(charset.length)]);
     }
-
-    if (options.includeLowercase && !/[a-z]/.test(result)) {
-      const lowerChars = "abcdefghijklmnopqrstuvwxyz";
-      const randomIndex = secureIndex(result.length);
-      result =
-        result.substring(0, randomIndex) +
-        lowerChars[secureIndex(lowerChars.length)] +
-        result.substring(randomIndex + 1);
+    // Mélange Fisher-Yates (CSPRNG) : les chars requis ne restent pas en tête.
+    for (let i = chars.length - 1; i > 0; i--) {
+      const j = secureIndex(i + 1);
+      [chars[i], chars[j]] = [chars[j], chars[i]];
     }
-
-    if (options.includeNumbers && !/[0-9]/.test(result)) {
-      const numberChars = "0123456789";
-      const randomIndex = secureIndex(result.length);
-      result =
-        result.substring(0, randomIndex) +
-        numberChars[secureIndex(numberChars.length)] +
-        result.substring(randomIndex + 1);
-    }
-
-    if (options.includeSymbols && !/[^A-Za-z0-9]/.test(result)) {
-      const symbolChars = "!@#$%^&*()_+-=[]{}|;:,.<>?";
-      const randomIndex = secureIndex(result.length);
-      result =
-        result.substring(0, randomIndex) +
-        symbolChars[secureIndex(symbolChars.length)] +
-        result.substring(randomIndex + 1);
-    }
+    const result = chars.join("");
 
     setGeneratedPassword(result);
     setPasswordStrength(calculatePasswordStrength(result));
