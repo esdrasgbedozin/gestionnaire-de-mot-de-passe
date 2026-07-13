@@ -10,7 +10,6 @@ import {
   ShieldCheckIcon,
   PlusIcon,
   MagnifyingGlassIcon,
-  BellIcon,
 } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 import passwordService from "../services/passwordService";
@@ -247,10 +246,6 @@ const Dashboard = () => {
               <div className="flex items-center space-x-4">
                 <ThemeToggle />
 
-                <button className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-300 dark:hover:text-white transition-colors">
-                  <BellIcon className="h-5 w-5" />
-                </button>
-
                 <div className="flex items-center space-x-2">
                   <form onSubmit={handleSearch} className="relative">
                     <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -384,7 +379,7 @@ const Dashboard = () => {
                         className={`w-2 h-2 rounded-full ${
                           activity.type === "created"
                             ? "bg-green-500"
-                            : "bg-blue-500"
+                            : "bg-indigo-500"
                         }`}
                       ></div>
                     </div>
