@@ -346,7 +346,33 @@ const Register = () => {
                       ></div>
                     </div>
 
-                    {/* Security Requirements */}
+                    {/* Exigence RÉELLE : le compte ne se crée que si le score
+                        zxcvbn >= 3 (cf. le gate dans validateForm). Affichée en
+                        premier et explicitement, pour que la checklist ne
+                        contredise plus le gate — avant, les 5 checks mécaniques
+                        pouvaient être tous verts et l'inscription bloquée
+                        (ou l'inverse). */}
+                    <div className="flex items-center text-xs">
+                      {passwordStrength.score >= 3 ? (
+                        <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
+                      ) : (
+                        <XCircleIcon className="h-4 w-4 text-gray-300 mr-2 flex-shrink-0" />
+                      )}
+                      <span
+                        className={`font-medium transition-colors ${
+                          passwordStrength.score >= 3
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-gray-600 dark:text-gray-300"
+                        }`}
+                      >
+                        Strong enough to create your account
+                      </span>
+                    </div>
+
+                    {/* Guidage (non bloquant) : comment renforcer. */}
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Tips to strengthen it:
+                    </p>
                     <div className="grid grid-cols-1 gap-2">
                       {[
                         { key: "length", text: "At least 8 characters" },
