@@ -28,9 +28,28 @@ module.exports = {
           700: "#b91c1c",
         },
       },
+      // Piles système réelles : Inter/JetBrains Mono n'ont jamais été chargées
+      // (aucun @font-face/link), et on évite Google Fonts (fuite réseau vers un
+      // tiers, proscrite sur un produit de sécurité). La config reflète donc ce
+      // qui est réellement rendu — cf. le body dans index.css.
       fontFamily: {
-        sans: ["Inter", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
+        sans: [
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+        mono: [
+          "ui-monospace",
+          "SFMono-Regular",
+          "Menlo",
+          "Consolas",
+          "Liberation Mono",
+          "monospace",
+        ],
       },
     },
   },

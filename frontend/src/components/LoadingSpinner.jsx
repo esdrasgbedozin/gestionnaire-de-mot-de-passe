@@ -9,7 +9,6 @@ const LoadingSpinner = ({ size = 'medium', color = 'indigo' }) => {
 
   const colorClasses = {
     indigo: 'border-indigo-500',
-    blue: 'border-blue-500',
     green: 'border-green-500',
     red: 'border-red-500',
   };
